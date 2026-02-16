@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { LayoutDashboard, HardHat, Package, Users, Truck, DollarSign, FileText, X, ChevronDown, ChevronRight, ArrowRight } from 'lucide-react';
+import brandLogo from '../src/assets/Gemini_Generated_Image_l0vw5al0vw5al0vw23-removebg-preview.png';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -62,7 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, activePage, on
         <div className="p-6 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
           <div className="bg-white p-2 rounded-lg w-full flex items-center justify-center overflow-hidden">
              <img 
-               src="https://media.discordapp.net/attachments/1314589251834155018/1346213710776733807/alemao.PNG?ex=67c762fe&is=67c6117e&hm=61623910c2c31c0337c7625805562d515a452a22530dfb39d10e083c65df516f&=&format=webp&quality=lossless" 
+               src={brandLogo}
                alt="Alemão do Gesso" 
                className="h-10 w-auto object-contain"
              />
