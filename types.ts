@@ -1,10 +1,10 @@
-
+﻿
 // Status Definitions
 export enum ProjectStatus {
-  ORCAMENTO = 'Orçamento',
+  ORCAMENTO = 'OrÃ§amento',
   APROVADO = 'Aprovado',
   EM_ANDAMENTO = 'Em Andamento',
-  CONCLUIDO = 'Concluído',
+  CONCLUIDO = 'ConcluÃ­do',
   CANCELADO = 'Cancelado'
 }
 
@@ -16,8 +16,8 @@ export enum TransactionType {
 export enum PaymentMethod {
   PIX = 'Pix',
   BOLETO = 'Boleto',
-  CREDITO = 'Crédito',
-  DEBITO = 'Débito',
+  CREDITO = 'CrÃ©dito',
+  DEBITO = 'DÃ©bito',
   DINHEIRO = 'Dinheiro'
 }
 
@@ -64,7 +64,7 @@ export interface Project {
   
   // Computed/Relation fields for frontend
   client_name?: string;
-  total_cost?: number; // Custo de materiais + mão de obra
+  total_cost?: number; // Custo de materiais + mÃ£o de obra
   profit_margin?: number;
 }
 
@@ -81,9 +81,9 @@ export interface Transaction {
   id: string;
   description: string;
   amount: number;
-  paid_amount?: number; // Valor efetivamente pago/recebido até o momento
+  paid_amount?: number; // Valor efetivamente pago/recebido atÃ© o momento
   type: TransactionType;
-  category: string; // Material, Mão de Obra, Combustível, Recebimento Obra, Administrativo
+  category: string; // Material, MÃ£o de Obra, CombustÃ­vel, Recebimento Obra, Administrativo
   date: string;
   status: 'Pendente' | 'Pago' | 'Parcial';
   project_id?: string;
@@ -96,9 +96,19 @@ export interface Vehicle {
   plate: string;
   current_km: number;
   last_maintenance?: string;
-  status: 'Ativo' | 'Manutenção';
+  status: 'Ativo' | 'ManutenÃ§Ã£o';
 }
 
+export interface ReportExport {
+  id: string;
+  report_name: string;
+  period_start?: string;
+  period_end?: string;
+  file_url?: string;
+  file_format: string;
+  generated_at: string;
+  notes?: string;
+}
 // Dashboard Summary Type
 export interface DashboardStats {
   revenue: number;
@@ -107,3 +117,4 @@ export interface DashboardStats {
   active_projects: number;
   low_stock_items: number;
 }
+

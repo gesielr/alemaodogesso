@@ -3,6 +3,7 @@ import {
   DashboardStats,
   Material,
   Project,
+  ReportExport,
   Transaction,
   Vehicle
 } from '../types';
@@ -97,6 +98,17 @@ const mapVehicleRow = (row: any): Vehicle => ({
   current_km: toNumber(row.current_km),
   last_maintenance: row.last_maintenance ?? undefined,
   status: row.status
+});
+
+const mapReportExportRow = (row: any): ReportExport => ({
+  id: String(row.id),
+  report_name: row.report_name ?? '',
+  period_start: row.period_start ?? undefined,
+  period_end: row.period_end ?? undefined,
+  file_url: row.file_url ?? undefined,
+  file_format: row.file_format ?? 'pdf',
+  generated_at: row.generated_at ?? new Date().toISOString(),
+  notes: row.notes ?? undefined
 });
 
 const requireSupabase = () => {
@@ -527,5 +539,44 @@ export const api = {
         return true;
       },
       () => mockApi.deleteVehicle(id)
+    ),
+
+  // Reports
+  getReportExports: async () =>
+    run(
+      async () => {
+        const client = requireSupabase();
+        const { data, error } = await client
+          .from('report_exports')
+          .select('*')
+          .order('generated_at', { ascending: false });
+
+        if (error) throw error;
+        return (data ?? []).map(mapReportExportRow);
+      },
+      () => mockApi.getReportExports()
+    ),
+
+  addReportExport: async (reportExport: Omit<ReportExport, 'id' | 'generated_at'>) =>
+    run(
+      async () => {
+        const client = requireSupabase();
+        const { data, error } = await client
+          .from('report_exports')
+          .insert({
+            report_name: reportExport.report_name,
+            period_start: reportExport.period_start ?? null,
+            period_end: reportExport.period_end ?? null,
+            file_url: reportExport.file_url ?? null,
+            file_format: reportExport.file_format ?? 'pdf',
+            notes: reportExport.notes ?? null
+          })
+          .select('*')
+          .single();
+
+        if (error) throw error;
+        return mapReportExportRow(data);
+      },
+      () => mockApi.addReportExport(reportExport)
     )
 };
