@@ -49,11 +49,18 @@ const mapProjectRow = (row: any): Project => ({
   client_name: row.client_name ?? '',
   title: row.title ?? '',
   description: row.description ?? undefined,
+  service: row.service ?? undefined,
+  execution_time: row.execution_time ?? undefined,
   status: row.status,
   start_date: row.start_date ?? undefined,
   end_date: row.end_date ?? undefined,
   total_value: toNumber(row.total_value),
   address: row.address ?? '',
+  material_cost: row.material_cost == null ? undefined : toNumber(row.material_cost),
+  vehicle_cost: row.vehicle_cost == null ? undefined : toNumber(row.vehicle_cost),
+  labor_cost: row.labor_cost == null ? undefined : toNumber(row.labor_cost),
+  tax_cost: row.tax_cost == null ? undefined : toNumber(row.tax_cost),
+  invoice_sent: row.invoice_sent == null ? undefined : Boolean(row.invoice_sent),
   total_cost: row.total_cost == null ? undefined : toNumber(row.total_cost),
   profit_margin: row.profit_margin == null ? undefined : toNumber(row.profit_margin)
 });
@@ -190,11 +197,18 @@ export const api = {
             client_id: project.client_id,
             title: project.title,
             description: project.description ?? null,
+            service: project.service ?? null,
+            execution_time: project.execution_time ?? null,
             status: project.status,
             start_date: project.start_date ?? null,
             end_date: project.end_date ?? null,
             total_value: toNumber(project.total_value),
-            address: project.address
+            address: project.address,
+            material_cost: toNumber(project.material_cost),
+            vehicle_cost: toNumber(project.vehicle_cost),
+            labor_cost: toNumber(project.labor_cost),
+            tax_cost: toNumber(project.tax_cost),
+            invoice_sent: Boolean(project.invoice_sent)
           })
           .select('*')
           .single();
@@ -210,6 +224,47 @@ export const api = {
         });
       },
       () => mockApi.addProject(project)
+    ),
+
+  updateProject: async (updatedProject: Project) =>
+    run(
+      async () => {
+        const client = requireSupabase();
+
+        const { data: updated, error } = await client
+          .from('projects')
+          .update({
+            client_id: updatedProject.client_id,
+            title: updatedProject.title,
+            description: updatedProject.description ?? null,
+            service: updatedProject.service ?? null,
+            execution_time: updatedProject.execution_time ?? null,
+            status: updatedProject.status,
+            start_date: updatedProject.start_date ?? null,
+            end_date: updatedProject.end_date ?? null,
+            total_value: toNumber(updatedProject.total_value),
+            address: updatedProject.address,
+            material_cost: toNumber(updatedProject.material_cost),
+            vehicle_cost: toNumber(updatedProject.vehicle_cost),
+            labor_cost: toNumber(updatedProject.labor_cost),
+            tax_cost: toNumber(updatedProject.tax_cost),
+            invoice_sent: Boolean(updatedProject.invoice_sent)
+          })
+          .eq('id', updatedProject.id)
+          .select('*')
+          .single();
+
+        if (error) throw error;
+
+        const fullProject = await getProjectById(updated.id);
+        if (fullProject) return fullProject;
+
+        return mapProjectRow({
+          ...updated,
+          client_name: updatedProject.client_name ?? ''
+        });
+      },
+      () => mockApi.updateProject(updatedProject)
     ),
 
   // Inventory

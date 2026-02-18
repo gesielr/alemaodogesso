@@ -1,6 +1,5 @@
-
 import React, { useEffect, useState } from 'react';
-import { Plus, Search, MapPin, Calendar, DollarSign, ArrowRight, Loader } from 'lucide-react';
+import { Plus, Search, MapPin, Calendar, DollarSign, Loader, Pencil } from 'lucide-react';
 import { api } from '../services/api';
 import { Project, ProjectStatus } from '../types';
 import Modal from '../components/Modal';
@@ -8,6 +7,26 @@ import Modal from '../components/Modal';
 interface ProjectsProps {
   initialSearchTerm?: string;
 }
+
+const getEmptyProjectForm = (): Partial<Project> => ({
+  title: '',
+  client_name: '',
+  total_value: 0,
+  address: '',
+  status: ProjectStatus.ORCAMENTO,
+  service: '',
+  execution_time: '',
+  material_cost: 0,
+  vehicle_cost: 0,
+  labor_cost: 0,
+  tax_cost: 0,
+  invoice_sent: false
+});
+
+const toMoneyValue = (value: string | number | undefined): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
 
 const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -17,13 +36,8 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [newProject, setNewProject] = useState<Partial<Project>>({
-    title: '',
-    client_name: '',
-    total_value: 0,
-    address: '',
-    status: ProjectStatus.ORCAMENTO
-  });
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
+  const [newProject, setNewProject] = useState<Partial<Project>>(getEmptyProjectForm());
 
   useEffect(() => {
     fetchProjects();
@@ -51,39 +65,91 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
     return matchesSearch && matchesStatus;
   });
 
-  const handleAddProject = async (e: React.FormEvent) => {
+  const handleOpenAddProject = () => {
+    setEditingProjectId(null);
+    setNewProject(getEmptyProjectForm());
+    setIsModalOpen(true);
+  };
+
+  const handleOpenEditProject = (project: Project) => {
+    setEditingProjectId(project.id);
+    setNewProject({
+      ...project,
+      service: project.service ?? '',
+      execution_time: project.execution_time ?? '',
+      material_cost: project.material_cost ?? 0,
+      vehicle_cost: project.vehicle_cost ?? 0,
+      labor_cost: project.labor_cost ?? 0,
+      tax_cost: project.tax_cost ?? 0,
+      invoice_sent: Boolean(project.invoice_sent)
+    });
+    setIsModalOpen(true);
+  };
+
+  const ensureClientId = async (clientNameRaw: string) => {
+    const clientName = clientNameRaw.trim();
+    const allClients = await api.getClients();
+    const existingClient = allClients.find(
+      (client) => client.name.trim().toLowerCase() === clientName.toLowerCase()
+    );
+
+    if (existingClient?.id) {
+      return { clientId: existingClient.id, clientName };
+    }
+
+    const createdClient = await api.addClient({
+      name: clientName,
+      phone: '',
+      email: '',
+      address: newProject.address || '',
+      document: '',
+      observations: 'Cliente criado automaticamente ao cadastrar obra.'
+    });
+
+    return { clientId: createdClient.id, clientName };
+  };
+
+  const handleSaveProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newProject.title && newProject.client_name) {
-      setLoading(true);
+    if (!newProject.title || !newProject.client_name || !newProject.service) return;
 
-      const clientName = newProject.client_name.trim();
-      const allClients = await api.getClients();
-      const existingClient = allClients.find(
-        (client) => client.name.trim().toLowerCase() === clientName.toLowerCase()
-      );
+    setLoading(true);
+    try {
+      const { clientId, clientName } = await ensureClientId(newProject.client_name);
+      const invoiceSent = Boolean(newProject.invoice_sent);
+      const normalizedTax = invoiceSent ? toMoneyValue(newProject.tax_cost) : 0;
 
-      let clientId = existingClient?.id;
-      if (!clientId) {
-        const createdClient = await api.addClient({
-          name: clientName,
-          phone: '',
-          email: '',
-          address: newProject.address || '',
-          document: '',
-          observations: 'Cliente criado automaticamente ao cadastrar obra.'
-        });
-        clientId = createdClient.id;
+      const payload: Omit<Project, 'id'> = {
+        client_id: clientId,
+        client_name: clientName,
+        title: newProject.title.trim(),
+        description: newProject.description ?? '',
+        service: newProject.service?.trim() ?? '',
+        execution_time: newProject.execution_time?.trim() ?? '',
+        status: (newProject.status as ProjectStatus) ?? ProjectStatus.ORCAMENTO,
+        start_date: newProject.start_date ?? new Date().toISOString().split('T')[0],
+        end_date: newProject.end_date,
+        total_value: toMoneyValue(newProject.total_value),
+        address: (newProject.address ?? '').trim(),
+        material_cost: toMoneyValue(newProject.material_cost),
+        vehicle_cost: toMoneyValue(newProject.vehicle_cost),
+        labor_cost: toMoneyValue(newProject.labor_cost),
+        tax_cost: normalizedTax,
+        invoice_sent: invoiceSent
+      };
+
+      if (editingProjectId) {
+        await api.updateProject({ ...payload, id: editingProjectId });
+      } else {
+        await api.addProject(payload);
       }
 
-      await api.addProject({
-        ...newProject as Project,
-        start_date: new Date().toISOString().split('T')[0],
-        client_id: clientId,
-        client_name: clientName
-      });
       await fetchProjects();
       setIsModalOpen(false);
-      setNewProject({ title: '', client_name: '', total_value: 0, address: '', status: ProjectStatus.ORCAMENTO });
+      setEditingProjectId(null);
+      setNewProject(getEmptyProjectForm());
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -106,7 +172,7 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
           <p className="text-gray-500 text-sm">Acompanhe orçamentos e execuções em tempo real.</p>
         </div>
         <button 
-          onClick={() => setIsModalOpen(true)}
+          onClick={handleOpenAddProject}
           className="flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg shadow-sm font-medium transition"
         >
           <Plus size={18} className="mr-2" />
@@ -150,8 +216,13 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
                   <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusColor(project.status)}`}>
                     {project.status}
                   </span>
-                  <button className="text-gray-400 hover:text-gray-600">
-                    <ArrowRight size={20} />
+                  <button
+                    type="button"
+                    className="text-gray-400 hover:text-gray-700"
+                    title="Editar obra"
+                    onClick={() => handleOpenEditProject(project)}
+                  >
+                    <Pencil size={18} />
                   </button>
                 </div>
                 
@@ -199,64 +270,178 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
         </div>
       )}
 
-      {/* Add Project Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Nova Obra">
-        <form onSubmit={handleAddProject} className="space-y-4">
+            {/* Add/Edit Project Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => {
+          setIsModalOpen(false);
+          setEditingProjectId(null);
+          setNewProject(getEmptyProjectForm());
+        }}
+        title={editingProjectId ? 'Editar Obra' : 'Nova Obra'}
+      >
+        <form onSubmit={handleSaveProject} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Título da Obra</label>
-            <input 
+            <label className="block text-sm font-medium text-gray-700 mb-1">Obra</label>
+            <input
               required
-              type="text" 
+              type="text"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-              value={newProject.title}
-              onChange={e => setNewProject({...newProject, title: e.target.value})}
+              value={newProject.title ?? ''}
+              onChange={(e) => setNewProject({ ...newProject, title: e.target.value })}
             />
           </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
-            <input 
+            <input
               required
-              type="text" 
+              type="text"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-              value={newProject.client_name}
-              onChange={e => setNewProject({...newProject, client_name: e.target.value})}
+              value={newProject.client_name ?? ''}
+              onChange={(e) => setNewProject({ ...newProject, client_name: e.target.value })}
             />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Valor Total (R$)</label>
-              <input 
+              <label className="block text-sm font-medium text-gray-700 mb-1">Valor (R$)</label>
+              <input
                 required
-                type="number" 
+                min={0}
+                step="0.01"
+                type="number"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-                value={newProject.total_value}
-                onChange={e => setNewProject({...newProject, total_value: parseFloat(e.target.value)})}
+                value={newProject.total_value ?? 0}
+                onChange={(e) => setNewProject({ ...newProject, total_value: toMoneyValue(e.target.value) })}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select 
+              <select
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                 value={newProject.status}
-                onChange={e => setNewProject({...newProject, status: e.target.value as ProjectStatus})}
+                onChange={(e) => setNewProject({ ...newProject, status: e.target.value as ProjectStatus })}
               >
-                {Object.values(ProjectStatus).map(s => <option key={s} value={s}>{s}</option>)}
+                {Object.values(ProjectStatus).map((s) => <option key={s} value={s}>{s}</option>)}
               </select>
             </div>
           </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Servico</label>
+              <input
+                required
+                type="text"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                value={newProject.service ?? ''}
+                onChange={(e) => setNewProject({ ...newProject, service: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tempo de execucao</label>
+              <input
+                type="text"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                value={newProject.execution_time ?? ''}
+                onChange={(e) => setNewProject({ ...newProject, execution_time: e.target.value })}
+                placeholder="Ex: 12 dias"
+              />
+            </div>
+          </div>
+
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Endereço</label>
-            <input 
+            <label className="block text-sm font-medium text-gray-700 mb-1">Endereco</label>
+            <input
               required
-              type="text" 
+              type="text"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-              value={newProject.address}
-              onChange={e => setNewProject({...newProject, address: e.target.value})}
+              value={newProject.address ?? ''}
+              onChange={(e) => setNewProject({ ...newProject, address: e.target.value })}
             />
           </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Material (R$)</label>
+              <input
+                min={0}
+                step="0.01"
+                type="number"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                value={newProject.material_cost ?? 0}
+                onChange={(e) => setNewProject({ ...newProject, material_cost: toMoneyValue(e.target.value) })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Veiculo (R$)</label>
+              <input
+                min={0}
+                step="0.01"
+                type="number"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                value={newProject.vehicle_cost ?? 0}
+                onChange={(e) => setNewProject({ ...newProject, vehicle_cost: toMoneyValue(e.target.value) })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Mao de obra (R$)</label>
+              <input
+                min={0}
+                step="0.01"
+                type="number"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                value={newProject.labor_cost ?? 0}
+                onChange={(e) => setNewProject({ ...newProject, labor_cost: toMoneyValue(e.target.value) })}
+              />
+            </div>
+          </div>
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={Boolean(newProject.invoice_sent)}
+              onChange={(e) =>
+                setNewProject({
+                  ...newProject,
+                  invoice_sent: e.target.checked,
+                  tax_cost: e.target.checked ? toMoneyValue(newProject.tax_cost) : 0
+                })
+              }
+            />
+            <span className="text-sm text-gray-700">Nota enviada</span>
+          </label>
+
+          {newProject.invoice_sent && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Tributos (quando envio nota) (R$)</label>
+              <input
+                min={0}
+                step="0.01"
+                type="number"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
+                value={newProject.tax_cost ?? 0}
+                onChange={(e) => setNewProject({ ...newProject, tax_cost: toMoneyValue(e.target.value) })}
+              />
+            </div>
+          )}
+
           <div className="pt-4 flex justify-end gap-3">
-             <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium">Cancelar</button>
-             <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">Salvar Obra</button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsModalOpen(false);
+                setEditingProjectId(null);
+                setNewProject(getEmptyProjectForm());
+              }}
+              className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium"
+            >
+              Cancelar
+            </button>
+            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">
+              {editingProjectId ? 'Salvar Alteracoes' : 'Salvar Obra'}
+            </button>
           </div>
         </form>
       </Modal>
@@ -265,3 +450,4 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
 };
 
 export default Projects;
+

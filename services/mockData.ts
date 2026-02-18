@@ -57,6 +57,10 @@ export const api = {
     projects = [newProject, ...projects];
     return newProject;
   },
+  updateProject: async (updatedProject: Project) => {
+    projects = projects.map(p => p.id === updatedProject.id ? updatedProject : p);
+    return updatedProject;
+  },
 
   // Inventory
   getInventory: async () => new Promise<Material[]>(res => setTimeout(() => res([...inventory]), 300)),

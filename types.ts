@@ -56,15 +56,22 @@ export interface Project {
   client_id: string;
   title: string;
   description?: string;
+  service?: string;
+  execution_time?: string;
   status: ProjectStatus;
   start_date?: string;
   end_date?: string;
   total_value: number; // Valor cobrado do cliente
   address: string;
+  material_cost?: number;
+  vehicle_cost?: number;
+  labor_cost?: number;
+  tax_cost?: number;
+  invoice_sent?: boolean;
   
   // Computed/Relation fields for frontend
   client_name?: string;
-  total_cost?: number; // Custo de materiais + mÃ£o de obra
+  total_cost?: number; // Custo total consolidado da obra
   profit_margin?: number;
 }
 

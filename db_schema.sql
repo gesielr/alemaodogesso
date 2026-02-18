@@ -130,11 +130,18 @@ create table if not exists public.projects (
   client_id uuid not null references public.clients(id) on delete restrict,
   title text not null,
   description text,
+  service text not null default '',
+  execution_time text,
   status public.project_status not null default 'Orçamento',
   start_date date,
   end_date date,
   total_value numeric(14, 2) not null default 0 check (total_value >= 0),
   address text not null default '',
+  material_cost numeric(14, 2) not null default 0 check (material_cost >= 0),
+  vehicle_cost numeric(14, 2) not null default 0 check (vehicle_cost >= 0),
+  labor_cost numeric(14, 2) not null default 0 check (labor_cost >= 0),
+  tax_cost numeric(14, 2) not null default 0 check (tax_cost >= 0),
+  invoice_sent boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint projects_dates_check check (
@@ -514,13 +521,36 @@ select
   p.client_id,
   c.name as client_name,
   p.title,
+  p.description,
+  p.service,
+  p.execution_time,
   p.status,
   p.start_date,
   p.end_date,
   p.address,
   p.total_value,
-  coalesce(sum(pc.amount), 0)::numeric(14, 2) as total_cost,
-  (p.total_value - coalesce(sum(pc.amount), 0))::numeric(14, 2) as profit_margin
+  p.material_cost,
+  p.vehicle_cost,
+  p.labor_cost,
+  p.tax_cost,
+  p.invoice_sent,
+  (
+    coalesce(sum(pc.amount), 0)
+    + coalesce(p.material_cost, 0)
+    + coalesce(p.vehicle_cost, 0)
+    + coalesce(p.labor_cost, 0)
+    + coalesce(p.tax_cost, 0)
+  )::numeric(14, 2) as total_cost,
+  (
+    p.total_value
+    - (
+      coalesce(sum(pc.amount), 0)
+      + coalesce(p.material_cost, 0)
+      + coalesce(p.vehicle_cost, 0)
+      + coalesce(p.labor_cost, 0)
+      + coalesce(p.tax_cost, 0)
+    )
+  )::numeric(14, 2) as profit_margin
 from public.projects p
 left join public.clients c on c.id = p.client_id
 left join public.project_costs pc on pc.project_id = p.id
