@@ -1,10 +1,10 @@
-﻿
+
 // Status Definitions
 export enum ProjectStatus {
-  ORCAMENTO = 'OrÃ§amento',
+  ORCAMENTO = 'Or\u00e7amento',
   APROVADO = 'Aprovado',
   EM_ANDAMENTO = 'Em Andamento',
-  CONCLUIDO = 'ConcluÃ­do',
+  CONCLUIDO = 'Conclu\u00eddo',
   CANCELADO = 'Cancelado'
 }
 
@@ -16,8 +16,8 @@ export enum TransactionType {
 export enum PaymentMethod {
   PIX = 'Pix',
   BOLETO = 'Boleto',
-  CREDITO = 'CrÃ©dito',
-  DEBITO = 'DÃ©bito',
+  CREDITO = 'Cr\u00e9dito',
+  DEBITO = 'D\u00e9bito',
   DINHEIRO = 'Dinheiro'
 }
 
@@ -88,9 +88,9 @@ export interface Transaction {
   id: string;
   description: string;
   amount: number;
-  paid_amount?: number; // Valor efetivamente pago/recebido atÃ© o momento
+  paid_amount?: number; // Valor efetivamente pago/recebido ate o momento
   type: TransactionType;
-  category: string; // Material, MÃ£o de Obra, CombustÃ­vel, Recebimento Obra, Administrativo
+  category: string; // Material, Mao de Obra, Combustivel, Recebimento Obra, Administrativo
   date: string;
   status: 'Pendente' | 'Pago' | 'Parcial';
   project_id?: string;
@@ -103,7 +103,7 @@ export interface Vehicle {
   plate: string;
   current_km: number;
   last_maintenance?: string;
-  status: 'Ativo' | 'ManutenÃ§Ã£o';
+  status: 'Ativo' | 'Manuten\u00e7\u00e3o';
 }
 
 export interface ReportExport {
