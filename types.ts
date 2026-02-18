@@ -37,6 +37,8 @@ export interface Material {
   name: string;
   unit: string; // m2, kg, sc, un
   price_cost: number;
+  price_sale?: number;
+  profitability_pct?: number;
   quantity: number;
   min_quantity: number;
   supplier?: string;
@@ -82,6 +84,15 @@ export interface ProjectCost {
   description: string;
   amount: number;
   date: string;
+}
+
+export interface ProjectServiceItem {
+  id: string;
+  project_id: string;
+  code: string;
+  description: string;
+  amount: number;
+  order_index: number;
 }
 
 export interface Transaction {

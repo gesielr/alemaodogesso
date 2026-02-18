@@ -3,6 +3,7 @@ import {
   DashboardStats,
   Material,
   Project,
+  ProjectServiceItem,
   ReportExport,
   Transaction,
   Vehicle
@@ -70,9 +71,23 @@ const mapMaterialRow = (row: any): Material => ({
   name: row.name ?? '',
   unit: row.unit ?? 'un',
   price_cost: toNumber(row.price_cost),
+  price_sale: toNumber(row.price_sale),
+  profitability_pct:
+    toNumber(row.price_cost) > 0
+      ? ((toNumber(row.price_sale) - toNumber(row.price_cost)) / toNumber(row.price_cost)) * 100
+      : 0,
   quantity: toNumber(row.quantity),
   min_quantity: toNumber(row.min_quantity),
   supplier: readSupplierName(row.suppliers)
+});
+
+const mapProjectServiceItemRow = (row: any): ProjectServiceItem => ({
+  id: String(row.id),
+  project_id: String(row.project_id),
+  code: row.code ?? '',
+  description: row.description ?? '',
+  amount: toNumber(row.amount),
+  order_index: toNumber(row.order_index)
 });
 
 const mapTransactionRow = (row: any): Transaction => ({
@@ -267,6 +282,58 @@ export const api = {
       () => mockApi.updateProject(updatedProject)
     ),
 
+  getProjectServiceItems: async (projectId: string) =>
+    run(
+      async () => {
+        const client = requireSupabase();
+        const { data, error } = await client
+          .from('project_service_items')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('order_index', { ascending: true });
+
+        if (error) throw error;
+        return (data ?? []).map(mapProjectServiceItemRow);
+      },
+      () => mockApi.getProjectServiceItems(projectId)
+    ),
+
+  saveProjectServiceItems: async (
+    projectId: string,
+    items: Omit<ProjectServiceItem, 'id' | 'project_id'>[]
+  ) =>
+    run(
+      async () => {
+        const client = requireSupabase();
+
+        const { error: deleteError } = await client
+          .from('project_service_items')
+          .delete()
+          .eq('project_id', projectId);
+        if (deleteError) throw deleteError;
+
+        if (items.length === 0) return [];
+
+        const payload = items.map((item, index) => ({
+          project_id: projectId,
+          code: item.code,
+          description: item.description,
+          amount: toNumber(item.amount),
+          order_index: toNumber(item.order_index, index)
+        }));
+
+        const { data, error } = await client
+          .from('project_service_items')
+          .insert(payload)
+          .select('*')
+          .order('order_index', { ascending: true });
+
+        if (error) throw error;
+        return (data ?? []).map(mapProjectServiceItemRow);
+      },
+      () => mockApi.saveProjectServiceItems(projectId, items)
+    ),
+
   // Inventory
   getInventory: async () =>
     run(
@@ -274,7 +341,7 @@ export const api = {
         const client = requireSupabase();
         const { data, error } = await client
           .from('materials')
-          .select('id,name,unit,price_cost,quantity,min_quantity,suppliers(name)')
+          .select('id,name,unit,price_cost,price_sale,quantity,min_quantity,suppliers(name)')
           .order('name', { ascending: true });
 
         if (error) throw error;
@@ -295,11 +362,12 @@ export const api = {
             name: item.name,
             unit: item.unit,
             price_cost: toNumber(item.price_cost),
+            price_sale: toNumber(item.price_sale),
             quantity: toNumber(item.quantity),
             min_quantity: toNumber(item.min_quantity),
             supplier_id: supplierId
           })
-          .select('id,name,unit,price_cost,quantity,min_quantity,suppliers(name)')
+          .select('id,name,unit,price_cost,price_sale,quantity,min_quantity,suppliers(name)')
           .single();
 
         if (error) throw error;
@@ -320,12 +388,13 @@ export const api = {
             name: updatedItem.name,
             unit: updatedItem.unit,
             price_cost: toNumber(updatedItem.price_cost),
+            price_sale: toNumber(updatedItem.price_sale),
             quantity: toNumber(updatedItem.quantity),
             min_quantity: toNumber(updatedItem.min_quantity),
             supplier_id: supplierId
           })
           .eq('id', updatedItem.id)
-          .select('id,name,unit,price_cost,quantity,min_quantity,suppliers(name)')
+          .select('id,name,unit,price_cost,price_sale,quantity,min_quantity,suppliers(name)')
           .single();
 
         if (error) throw error;

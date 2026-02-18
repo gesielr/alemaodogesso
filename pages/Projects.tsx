@@ -1,12 +1,39 @@
-import React, { useEffect, useState } from 'react';
-import { Plus, Search, MapPin, Calendar, DollarSign, Loader, Pencil } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Plus,
+  Search,
+  MapPin,
+  Calendar,
+  DollarSign,
+  Loader,
+  Pencil,
+  ListChecks,
+  FileDown,
+  Trash2
+} from 'lucide-react';
 import { api } from '../services/api';
-import { Project, ProjectStatus } from '../types';
+import { Project, ProjectServiceItem, ProjectStatus } from '../types';
 import Modal from '../components/Modal';
+import brandLogo from '../src/assets/Gemini_Generated_Image_l0vw5al0vw5al0vw23-removebg-preview.png';
+import { addStyledTable, createBasePdf, downloadBlob, sanitizePdfFilename } from '../utils/pdf';
 
 interface ProjectsProps {
   initialSearchTerm?: string;
 }
+
+type ServiceRow = {
+  local_id: string;
+  code: string;
+  description: string;
+  amount: number;
+};
+
+const createServiceRow = (index: number): ServiceRow => ({
+  local_id: Math.random().toString(36).slice(2),
+  code: `SRV-${String(index).padStart(3, '0')}`,
+  description: '',
+  amount: 0
+});
 
 const getEmptyProjectForm = (): Partial<Project> => ({
   title: '',
@@ -28,6 +55,31 @@ const toMoneyValue = (value: string | number | undefined): number => {
   return Number.isFinite(parsed) ? parsed : 0;
 };
 
+const buildServiceSummary = (serviceCount: number) =>
+  serviceCount > 0 ? `${serviceCount} servico(s)` : '';
+
+const toServicePayload = (rows: ServiceRow[]): Omit<ProjectServiceItem, 'id' | 'project_id'>[] =>
+  rows
+    .map((row) => ({
+      code: row.code.trim(),
+      description: row.description.trim(),
+      amount: toMoneyValue(row.amount)
+    }))
+    .filter((row) => row.code || row.description || row.amount > 0)
+    .map((row, index) => ({
+      ...row,
+      code: row.code || `SRV-${String(index + 1).padStart(3, '0')}`,
+      order_index: index
+    }));
+
+const mapApiServiceItemsToRows = (items: ProjectServiceItem[]): ServiceRow[] =>
+  items.map((item, index) => ({
+    local_id: item.id,
+    code: item.code || `SRV-${String(index + 1).padStart(3, '0')}`,
+    description: item.description || '',
+    amount: Number(item.amount) || 0
+  }));
+
 const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
@@ -38,6 +90,13 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
   const [newProject, setNewProject] = useState<Partial<Project>>(getEmptyProjectForm());
+
+  const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
+  const [serviceRows, setServiceRows] = useState<ServiceRow[]>([createServiceRow(1)]);
+  const [pendingServiceRows, setPendingServiceRows] = useState<ServiceRow[]>([createServiceRow(1)]);
+  const [loadingServices, setLoadingServices] = useState(false);
+  const [savingServices, setSavingServices] = useState(false);
+  const [sendingBudgetId, setSendingBudgetId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProjects();
@@ -57,17 +116,23 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
   };
 
   const normalizedSearch = searchTerm.toLowerCase().trim();
-  const filteredProjects = projects.filter((p) => {
-    const matchesSearch =
-      p.title.toLowerCase().includes(normalizedSearch) ||
-      p.client_name?.toLowerCase().includes(normalizedSearch);
-    const matchesStatus = statusFilter === 'ALL' || p.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  const filteredProjects = useMemo(
+    () =>
+      projects.filter((p) => {
+        const matchesSearch =
+          p.title.toLowerCase().includes(normalizedSearch) ||
+          p.client_name?.toLowerCase().includes(normalizedSearch);
+        const matchesStatus = statusFilter === 'ALL' || p.status === statusFilter;
+        return matchesSearch && matchesStatus;
+      }),
+    [projects, normalizedSearch, statusFilter]
+  );
 
   const handleOpenAddProject = () => {
     setEditingProjectId(null);
     setNewProject(getEmptyProjectForm());
+    setPendingServiceRows([createServiceRow(1)]);
+    setServiceRows([createServiceRow(1)]);
     setIsModalOpen(true);
   };
 
@@ -83,6 +148,8 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
       tax_cost: project.tax_cost ?? 0,
       invoice_sent: Boolean(project.invoice_sent)
     });
+    setPendingServiceRows([createServiceRow(1)]);
+    setServiceRows([createServiceRow(1)]);
     setIsModalOpen(true);
   };
 
@@ -109,22 +176,171 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
     return { clientId: createdClient.id, clientName };
   };
 
+  const handleOpenServicesModal = async () => {
+    if (editingProjectId) {
+      setLoadingServices(true);
+      try {
+        const items = await api.getProjectServiceItems(editingProjectId);
+        setServiceRows(items.length > 0 ? mapApiServiceItemsToRows(items) : [createServiceRow(1)]);
+      } catch (error) {
+        console.error('Erro ao carregar servicos da obra:', error);
+        alert('Nao foi possivel carregar os servicos desta obra.');
+        return;
+      } finally {
+        setLoadingServices(false);
+      }
+    } else {
+      setServiceRows(pendingServiceRows.length > 0 ? pendingServiceRows : [createServiceRow(1)]);
+    }
+
+    setIsServicesModalOpen(true);
+  };
+
+  const handleAddServiceRow = () => {
+    setServiceRows((prev) => [...prev, createServiceRow(prev.length + 1)]);
+  };
+
+  const handleRemoveServiceRow = (localId: string) => {
+    setServiceRows((prev) => {
+      if (prev.length <= 1) return prev;
+      return prev.filter((row) => row.local_id !== localId);
+    });
+  };
+
+  const handleChangeServiceRow = (localId: string, field: keyof ServiceRow, value: string | number) => {
+    setServiceRows((prev) =>
+      prev.map((row) => (row.local_id === localId ? { ...row, [field]: value } : row))
+    );
+  };
+
+  const handleSaveServices = async () => {
+    const payload = toServicePayload(serviceRows);
+    const countSummary = buildServiceSummary(payload.length);
+
+    if (editingProjectId) {
+      setSavingServices(true);
+      try {
+        const saved = await api.saveProjectServiceItems(editingProjectId, payload);
+        setServiceRows(saved.length > 0 ? mapApiServiceItemsToRows(saved) : [createServiceRow(1)]);
+        setNewProject((prev) => ({ ...prev, service: buildServiceSummary(saved.length) }));
+        await fetchProjects();
+      } catch (error) {
+        console.error('Erro ao salvar servicos da obra:', error);
+        alert('Nao foi possivel salvar os servicos.');
+        return;
+      } finally {
+        setSavingServices(false);
+      }
+    } else {
+      const nextRows = payload.length
+        ? payload.map((item, index) => ({
+            local_id: Math.random().toString(36).slice(2),
+            code: item.code || `SRV-${String(index + 1).padStart(3, '0')}`,
+            description: item.description,
+            amount: item.amount
+          }))
+        : [createServiceRow(1)];
+
+      setPendingServiceRows(nextRows);
+      setServiceRows(nextRows);
+      setNewProject((prev) => ({ ...prev, service: countSummary }));
+    }
+
+    setIsServicesModalOpen(false);
+  };
+
+  const handleSendBudgetPdf = async (project: Project) => {
+    setSendingBudgetId(project.id);
+
+    try {
+      const serviceItems = await api.getProjectServiceItems(project.id);
+      const rows = serviceItems.length
+        ? serviceItems.map((item) => [
+            item.code,
+            item.description || '-',
+            new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.amount)
+          ])
+        : [[
+            project.service || 'Servico geral',
+            project.description || '-',
+            new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.total_value)
+          ]];
+
+      const servicesTotal = serviceItems.reduce((acc, item) => acc + (Number(item.amount) || 0), 0);
+      const finalTotal = servicesTotal > 0 ? servicesTotal : Number(project.total_value) || 0;
+
+      const subtitle = `Cliente: ${project.client_name || '-'} | Data: ${new Date().toLocaleDateString('pt-BR')}`;
+      const { doc, startY } = await createBasePdf('Orcamento de Obra', subtitle);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text(project.title, 40, startY);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text(`Endereco: ${project.address || '-'}`, 40, startY + 18);
+      doc.text(`Status: ${project.status}`, 40, startY + 34);
+
+      const tableFinalY = addStyledTable(doc, ['Codigo', 'Descricao', 'Valor'], rows, startY + 50);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(12);
+      doc.text(
+        `Valor total do orcamento: ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(finalTotal)}`,
+        40,
+        tableFinalY + 26
+      );
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10);
+      doc.text('Validade da proposta: 7 dias corridos.', 40, tableFinalY + 46);
+
+      const fileName = `${sanitizePdfFilename(`orcamento-${project.title}`)}.pdf`;
+      const blob = doc.output('blob');
+      downloadBlob(blob, fileName);
+
+      const file = new File([blob], fileName, { type: 'application/pdf' });
+      const nav = navigator as Navigator & { canShare?: (data: ShareData) => boolean };
+
+      if (nav.share && nav.canShare?.({ files: [file] })) {
+        await nav.share({
+          title: `Orcamento - ${project.title}`,
+          text: `Segue o orcamento da obra ${project.title}.`,
+          files: [file]
+        });
+      } else {
+        const message = encodeURIComponent(
+          `Orcamento da obra ${project.title} gerado. O PDF foi baixado e pode ser anexado no WhatsApp.`
+        );
+        window.open(`https://wa.me/?text=${message}`, '_blank');
+      }
+    } catch (error) {
+      console.error('Erro ao enviar PDF de orcamento:', error);
+      alert('Nao foi possivel gerar o PDF de orcamento.');
+    } finally {
+      setSendingBudgetId(null);
+    }
+  };
+
   const handleSaveProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newProject.title || !newProject.client_name || !newProject.service) return;
+    if (!newProject.title || !newProject.client_name) return;
 
     setLoading(true);
     try {
       const { clientId, clientName } = await ensureClientId(newProject.client_name);
       const invoiceSent = Boolean(newProject.invoice_sent);
       const normalizedTax = invoiceSent ? toMoneyValue(newProject.tax_cost) : 0;
+      const pendingServicePayload = toServicePayload(pendingServiceRows);
+      const serviceSummary = editingProjectId
+        ? newProject.service?.trim() ?? ''
+        : buildServiceSummary(pendingServicePayload.length);
 
       const payload: Omit<Project, 'id'> = {
         client_id: clientId,
         client_name: clientName,
         title: newProject.title.trim(),
         description: newProject.description ?? '',
-        service: newProject.service?.trim() ?? '',
+        service: serviceSummary,
         execution_time: newProject.execution_time?.trim() ?? '',
         status: (newProject.status as ProjectStatus) ?? ProjectStatus.ORCAMENTO,
         start_date: newProject.start_date ?? new Date().toISOString().split('T')[0],
@@ -141,13 +357,18 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
       if (editingProjectId) {
         await api.updateProject({ ...payload, id: editingProjectId });
       } else {
-        await api.addProject(payload);
+        const createdProject = await api.addProject(payload);
+        if (pendingServicePayload.length > 0) {
+          await api.saveProjectServiceItems(createdProject.id, pendingServicePayload);
+        }
       }
 
       await fetchProjects();
       setIsModalOpen(false);
       setEditingProjectId(null);
       setNewProject(getEmptyProjectForm());
+      setPendingServiceRows([createServiceRow(1)]);
+      setServiceRows([createServiceRow(1)]);
     } finally {
       setLoading(false);
     }
@@ -169,7 +390,7 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Gerenciamento de Obras</h1>
-          <p className="text-gray-500 text-sm">Acompanhe orçamentos e execuções em tempo real.</p>
+          <p className="text-gray-500 text-sm">Acompanhe orcamentos e execucoes em tempo real.</p>
         </div>
         <button 
           onClick={handleOpenAddProject}
@@ -236,7 +457,7 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
                   </div>
                   <div className="flex items-center">
                     <Calendar size={16} className="mr-2 text-gray-400" />
-                    <span>{project.start_date ? new Date(project.start_date).toLocaleDateString('pt-BR') : 'Data não definida'}</span>
+                    <span>{project.start_date ? new Date(project.start_date).toLocaleDateString('pt-BR') : 'Data nao definida'}</span>
                   </div>
                   <div className="flex items-center">
                     <DollarSign size={16} className="mr-2 text-gray-400" />
@@ -247,23 +468,43 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
                 </div>
               </div>
               
-              <div className="bg-gray-50 px-5 py-3 border-t border-gray-100 rounded-b-xl">
-                 <div className="flex justify-between items-center text-xs">
+              <div className="bg-gray-50 px-5 py-3 border-t border-gray-100 rounded-b-xl space-y-3">
+                <div>
+                  <div className="flex justify-between items-center text-xs">
                     <span className="text-gray-500">Rentabilidade Estimada</span>
                     {project.profit_margin !== undefined && (
                       <span className={`font-bold ${project.profit_margin > 0 ? 'text-green-600' : 'text-gray-600'}`}>
                         {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(project.profit_margin)}
                       </span>
                     )}
-                 </div>
-                 {project.total_cost !== undefined && (
+                  </div>
+                  {project.total_cost !== undefined && (
                     <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2 overflow-hidden">
-                      <div 
-                        className="bg-blue-500 h-1.5 rounded-full" 
-                        style={{ width: `${Math.min(((project.total_cost || 0) / project.total_value) * 100, 100)}%` }}
+                      <div
+                        className="bg-blue-500 h-1.5 rounded-full"
+                        style={{
+                          width: `${Math.min(((project.total_cost || 0) / Math.max(project.total_value, 1)) * 100, 100)}%`
+                        }}
                       ></div>
                     </div>
-                 )}
+                  )}
+                </div>
+
+                {project.status === ProjectStatus.ORCAMENTO && (
+                  <button
+                    type="button"
+                    onClick={() => handleSendBudgetPdf(project)}
+                    disabled={sendingBudgetId === project.id}
+                    className="w-full flex items-center justify-center text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    {sendingBudgetId === project.id ? (
+                      <Loader className="animate-spin mr-2" size={16} />
+                    ) : (
+                      <FileDown size={16} className="mr-2" />
+                    )}
+                    Enviar PDF
+                  </button>
+                )}
               </div>
             </div>
           ))}
@@ -277,6 +518,8 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
           setIsModalOpen(false);
           setEditingProjectId(null);
           setNewProject(getEmptyProjectForm());
+          setPendingServiceRows([createServiceRow(1)]);
+          setServiceRows([createServiceRow(1)]);
         }}
         title={editingProjectId ? 'Editar Obra' : 'Nova Obra'}
       >
@@ -330,14 +573,20 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Servico</label>
-              <input
-                required
-                type="text"
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
-                value={newProject.service ?? ''}
-                onChange={(e) => setNewProject({ ...newProject, service: e.target.value })}
-              />
+              <label className="block text-sm font-medium text-gray-700 mb-1">Servicos</label>
+              <button
+                type="button"
+                onClick={handleOpenServicesModal}
+                className="w-full flex items-center justify-center px-3 py-2 border border-blue-200 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition"
+              >
+                {loadingServices ? (
+                  <Loader size={16} className="animate-spin mr-2" />
+                ) : (
+                  <ListChecks size={16} className="mr-2" />
+                )}
+                Gerenciar Servicos
+              </button>
+              <p className="text-xs text-gray-500 mt-1">{newProject.service || 'Nenhum servico informado.'}</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Tempo de execucao</label>
@@ -434,6 +683,8 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
                 setIsModalOpen(false);
                 setEditingProjectId(null);
                 setNewProject(getEmptyProjectForm());
+                setPendingServiceRows([createServiceRow(1)]);
+                setServiceRows([createServiceRow(1)]);
               }}
               className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium"
             >
@@ -444,6 +695,107 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
             </button>
           </div>
         </form>
+      </Modal>
+
+      <Modal
+        isOpen={isServicesModalOpen}
+        onClose={() => !savingServices && setIsServicesModalOpen(false)}
+        title="Servicos da Obra"
+        maxWidth="max-w-6xl"
+      >
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div className="bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 inline-flex items-center">
+              <img src={brandLogo} alt="Alemao do Gesso" className="h-10 w-auto object-contain" />
+            </div>
+            <button
+              type="button"
+              onClick={handleAddServiceRow}
+              className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg text-sm font-medium"
+            >
+              <Plus size={16} className="mr-1" />
+              Adicionar linha
+            </button>
+          </div>
+
+          <div className="overflow-x-auto border border-gray-200 rounded-lg">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-700 uppercase text-xs">
+                <tr>
+                  <th className="px-3 py-2 text-left w-36">Codigo</th>
+                  <th className="px-3 py-2 text-left">Descricao do Servico</th>
+                  <th className="px-3 py-2 text-right w-40">Valor (R$)</th>
+                  <th className="px-3 py-2 text-center w-20">Remover</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {serviceRows.map((row) => (
+                  <tr key={row.local_id} className="align-top">
+                    <td className="px-3 py-2">
+                      <input
+                        type="text"
+                        className="w-full px-2 py-1 border border-gray-300 rounded-md bg-white text-gray-900"
+                        value={row.code}
+                        onChange={(e) => handleChangeServiceRow(row.local_id, 'code', e.target.value)}
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <textarea
+                        className="w-full min-h-[64px] px-2 py-1 border border-gray-300 rounded-md bg-white text-gray-900"
+                        value={row.description}
+                        onChange={(e) => handleChangeServiceRow(row.local_id, 'description', e.target.value)}
+                      />
+                    </td>
+                    <td className="px-3 py-2">
+                      <input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        className="w-full px-2 py-1 border border-gray-300 rounded-md bg-white text-gray-900 text-right"
+                        value={row.amount}
+                        onChange={(e) => handleChangeServiceRow(row.local_id, 'amount', toMoneyValue(e.target.value))}
+                      />
+                    </td>
+                    <td className="px-3 py-2 text-center">
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveServiceRow(row.local_id)}
+                        className="inline-flex items-center justify-center p-1.5 rounded-md hover:bg-red-50 text-gray-400 hover:text-red-600"
+                        title="Remover linha"
+                        disabled={serviceRows.length <= 1}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-gray-500">Total de linhas: {serviceRows.length}</span>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setIsServicesModalOpen(false)}
+                className="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+                disabled={savingServices}
+              >
+                Fechar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveServices}
+                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 inline-flex items-center disabled:opacity-60"
+                disabled={savingServices}
+              >
+                {savingServices && <Loader size={16} className="animate-spin mr-2" />}
+                Salvar Servicos
+              </button>
+            </div>
+          </div>
+        </div>
       </Modal>
     </div>
   );

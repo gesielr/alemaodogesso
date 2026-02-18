@@ -1,6 +1,7 @@
 ﻿
 import { 
   Project, 
+  ProjectServiceItem,
   ProjectStatus, 
   Material, 
   Transaction, 
@@ -18,11 +19,26 @@ let inventory: Material[] = [];
 
 let projects: Project[] = [];
 
+let projectServiceItems: ProjectServiceItem[] = [];
+
 let transactions: Transaction[] = [];
 
 let vehicles: Vehicle[] = [];
 
 let reportExports: ReportExport[] = [];
+
+const withMaterialMetrics = (item: Material): Material => {
+  const priceCost = Number(item.price_cost) || 0;
+  const priceSale = Number(item.price_sale) || 0;
+  const profitability =
+    priceCost > 0 ? ((priceSale - priceCost) / priceCost) * 100 : 0;
+
+  return {
+    ...item,
+    price_sale: priceSale,
+    profitability_pct: profitability
+  };
+};
 
 export const getDashboardStats = (startDate?: string, endDate?: string): DashboardStats => {
   // Filter transactions by date range if provided
@@ -61,17 +77,56 @@ export const api = {
     projects = projects.map(p => p.id === updatedProject.id ? updatedProject : p);
     return updatedProject;
   },
+  getProjectServiceItems: async (projectId: string) =>
+    new Promise<ProjectServiceItem[]>((res) =>
+      setTimeout(
+        () =>
+          res(
+            projectServiceItems
+              .filter((item) => item.project_id === projectId)
+              .sort((a, b) => a.order_index - b.order_index)
+          ),
+        200
+      )
+    ),
+  saveProjectServiceItems: async (
+    projectId: string,
+    items: Omit<ProjectServiceItem, 'id' | 'project_id'>[]
+  ) => {
+    projectServiceItems = projectServiceItems.filter((item) => item.project_id !== projectId);
+    const inserted = items.map((item, index) => ({
+      id: Math.random().toString(36).substr(2, 9),
+      project_id: projectId,
+      code: item.code,
+      description: item.description,
+      amount: Number(item.amount) || 0,
+      order_index: Number(item.order_index ?? index)
+    }));
+    projectServiceItems = [...projectServiceItems, ...inserted];
+    return inserted.sort((a, b) => a.order_index - b.order_index);
+  },
 
   // Inventory
-  getInventory: async () => new Promise<Material[]>(res => setTimeout(() => res([...inventory]), 300)),
+  getInventory: async () =>
+    new Promise<Material[]>(res =>
+      setTimeout(() => res(inventory.map((item) => withMaterialMetrics(item))), 300)
+    ),
   addItem: async (item: Omit<Material, 'id'>) => {
-    const newItem = { ...item, id: Math.random().toString(36).substr(2, 9) } as Material;
+    const newItem = {
+      ...item,
+      id: Math.random().toString(36).substr(2, 9),
+      price_sale: Number(item.price_sale) || 0
+    } as Material;
     inventory = [newItem, ...inventory];
-    return newItem;
+    return withMaterialMetrics(newItem);
   },
   updateItem: async (updatedItem: Material) => {
-    inventory = inventory.map(i => i.id === updatedItem.id ? updatedItem : i);
-    return updatedItem;
+    const normalized = {
+      ...updatedItem,
+      price_sale: Number(updatedItem.price_sale) || 0
+    };
+    inventory = inventory.map(i => i.id === updatedItem.id ? normalized : i);
+    return withMaterialMetrics(normalized);
   },
   deleteItem: async (id: string) => {
     // FORCE string comparison for safety

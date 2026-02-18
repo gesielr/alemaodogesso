@@ -104,6 +104,7 @@ create table if not exists public.materials (
   name text not null,
   unit text not null,
   price_cost numeric(12, 2) not null default 0 check (price_cost >= 0),
+  price_sale numeric(12, 2) not null default 0 check (price_sale >= 0),
   quantity numeric(14, 3) not null default 0 check (quantity >= 0),
   min_quantity numeric(14, 3) not null default 0 check (min_quantity >= 0),
   supplier_id uuid references public.suppliers(id) on delete set null,
@@ -149,6 +150,17 @@ create table if not exists public.projects (
     or start_date is null
     or end_date >= start_date
   )
+);
+
+create table if not exists public.project_service_items (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid not null references public.projects(id) on delete cascade,
+  code text not null default '',
+  description text not null default '',
+  amount numeric(14, 2) not null default 0 check (amount >= 0),
+  order_index integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
 );
 
 create table if not exists public.transactions (
@@ -290,6 +302,11 @@ for each row execute function public.set_updated_at();
 drop trigger if exists trg_projects_updated_at on public.projects;
 create trigger trg_projects_updated_at
 before update on public.projects
+for each row execute function public.set_updated_at();
+
+drop trigger if exists trg_project_service_items_updated_at on public.project_service_items;
+create trigger trg_project_service_items_updated_at
+before update on public.project_service_items
 for each row execute function public.set_updated_at();
 
 drop trigger if exists trg_transactions_updated_at on public.transactions;
@@ -609,6 +626,8 @@ create index if not exists idx_projects_start_date on public.projects(start_date
 
 create index if not exists idx_project_costs_project on public.project_costs(project_id);
 create index if not exists idx_project_costs_date on public.project_costs(date);
+create index if not exists idx_project_service_items_project on public.project_service_items(project_id);
+create index if not exists idx_project_service_items_order on public.project_service_items(project_id, order_index);
 
 create index if not exists idx_transactions_type on public.transactions(type);
 create index if not exists idx_transactions_status on public.transactions(status);
@@ -641,6 +660,7 @@ alter table public.projects enable row level security;
 alter table public.transactions enable row level security;
 alter table public.transaction_settlements enable row level security;
 alter table public.project_costs enable row level security;
+alter table public.project_service_items enable row level security;
 alter table public.inventory_movements enable row level security;
 alter table public.vehicle_usage_logs enable row level security;
 alter table public.vehicle_maintenance_logs enable row level security;
@@ -696,6 +716,12 @@ with check (true);
 
 drop policy if exists project_costs_full_access on public.project_costs;
 create policy project_costs_full_access on public.project_costs
+for all to anon, authenticated
+using (true)
+with check (true);
+
+drop policy if exists project_service_items_full_access on public.project_service_items;
+create policy project_service_items_full_access on public.project_service_items
 for all to anon, authenticated
 using (true)
 with check (true);
