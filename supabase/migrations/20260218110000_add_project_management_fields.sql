@@ -15,19 +15,11 @@ select
   p.client_id,
   c.name as client_name,
   p.title,
-  p.description,
-  p.service,
-  p.execution_time,
   p.status,
   p.start_date,
   p.end_date,
   p.address,
   p.total_value,
-  p.material_cost,
-  p.vehicle_cost,
-  p.labor_cost,
-  p.tax_cost,
-  p.invoice_sent,
   (
     coalesce(sum(pc.amount), 0)
     + coalesce(p.material_cost, 0)
@@ -44,7 +36,15 @@ select
       + coalesce(p.labor_cost, 0)
       + coalesce(p.tax_cost, 0)
     )
-  )::numeric(14, 2) as profit_margin
+  )::numeric(14, 2) as profit_margin,
+  p.description,
+  p.service,
+  p.execution_time,
+  p.material_cost,
+  p.vehicle_cost,
+  p.labor_cost,
+  p.tax_cost,
+  p.invoice_sent
 from public.projects p
 left join public.clients c on c.id = p.client_id
 left join public.project_costs pc on pc.project_id = p.id
