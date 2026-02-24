@@ -1,10 +1,10 @@
 
 // Status Definitions
 export enum ProjectStatus {
-  ORCAMENTO = 'Or\u00e7amento',
+  ORCAMENTO = 'Orçamento',
   APROVADO = 'Aprovado',
   EM_ANDAMENTO = 'Em Andamento',
-  CONCLUIDO = 'Conclu\u00eddo',
+  CONCLUIDO = 'Concluído',
   CANCELADO = 'Cancelado'
 }
 
@@ -16,8 +16,8 @@ export enum TransactionType {
 export enum PaymentMethod {
   PIX = 'Pix',
   BOLETO = 'Boleto',
-  CREDITO = 'Cr\u00e9dito',
-  DEBITO = 'D\u00e9bito',
+  CREDITO = 'Crédito',
+  DEBITO = 'Débito',
   DINHEIRO = 'Dinheiro'
 }
 
@@ -37,8 +37,6 @@ export interface Material {
   name: string;
   unit: string; // m2, kg, sc, un
   price_cost: number;
-  price_sale?: number;
-  profitability_pct?: number;
   quantity: number;
   min_quantity: number;
   supplier?: string;
@@ -58,22 +56,15 @@ export interface Project {
   client_id: string;
   title: string;
   description?: string;
-  service?: string;
-  execution_time?: string;
   status: ProjectStatus;
   start_date?: string;
   end_date?: string;
   total_value: number; // Valor cobrado do cliente
   address: string;
-  material_cost?: number;
-  vehicle_cost?: number;
-  labor_cost?: number;
-  tax_cost?: number;
-  invoice_sent?: boolean;
   
   // Computed/Relation fields for frontend
   client_name?: string;
-  total_cost?: number; // Custo total consolidado da obra
+  total_cost?: number; // Custo de materiais + mão de obra
   profit_margin?: number;
 }
 
@@ -84,24 +75,25 @@ export interface ProjectCost {
   description: string;
   amount: number;
   date: string;
+  notes?: string;
 }
 
-export interface ProjectServiceItem {
+export interface ProjectBudgetRevision {
   id: string;
   project_id: string;
-  code: string;
-  description: string;
-  amount: number;
-  order_index: number;
+  previous_value: number;
+  new_value: number;
+  reason: string;
+  changed_at: string;
 }
 
 export interface Transaction {
   id: string;
   description: string;
   amount: number;
-  paid_amount?: number; // Valor efetivamente pago/recebido ate o momento
+  paid_amount?: number; // Valor efetivamente pago/recebido até o momento
   type: TransactionType;
-  category: string; // Material, Mao de Obra, Combustivel, Recebimento Obra, Administrativo
+  category: string; // Material, Mão de Obra, Combustível, Recebimento Obra, Administrativo
   date: string;
   status: 'Pendente' | 'Pago' | 'Parcial';
   project_id?: string;
@@ -114,19 +106,9 @@ export interface Vehicle {
   plate: string;
   current_km: number;
   last_maintenance?: string;
-  status: 'Ativo' | 'Manuten\u00e7\u00e3o';
+  status: 'Ativo' | 'Manutenção';
 }
 
-export interface ReportExport {
-  id: string;
-  report_name: string;
-  period_start?: string;
-  period_end?: string;
-  file_url?: string;
-  file_format: string;
-  generated_at: string;
-  notes?: string;
-}
 // Dashboard Summary Type
 export interface DashboardStats {
   revenue: number;
@@ -135,4 +117,3 @@ export interface DashboardStats {
   active_projects: number;
   low_stock_items: number;
 }
-

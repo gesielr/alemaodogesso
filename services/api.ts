@@ -3,8 +3,8 @@ import {
   DashboardStats,
   Material,
   Project,
-  ProjectServiceItem,
-  ReportExport,
+  ProjectBudgetRevision,
+  ProjectCost,
   Transaction,
   Vehicle
 } from '../types';
@@ -50,18 +50,11 @@ const mapProjectRow = (row: any): Project => ({
   client_name: row.client_name ?? '',
   title: row.title ?? '',
   description: row.description ?? undefined,
-  service: row.service ?? undefined,
-  execution_time: row.execution_time ?? undefined,
   status: row.status,
   start_date: row.start_date ?? undefined,
   end_date: row.end_date ?? undefined,
   total_value: toNumber(row.total_value),
   address: row.address ?? '',
-  material_cost: row.material_cost == null ? undefined : toNumber(row.material_cost),
-  vehicle_cost: row.vehicle_cost == null ? undefined : toNumber(row.vehicle_cost),
-  labor_cost: row.labor_cost == null ? undefined : toNumber(row.labor_cost),
-  tax_cost: row.tax_cost == null ? undefined : toNumber(row.tax_cost),
-  invoice_sent: row.invoice_sent == null ? undefined : Boolean(row.invoice_sent),
   total_cost: row.total_cost == null ? undefined : toNumber(row.total_cost),
   profit_margin: row.profit_margin == null ? undefined : toNumber(row.profit_margin)
 });
@@ -71,23 +64,9 @@ const mapMaterialRow = (row: any): Material => ({
   name: row.name ?? '',
   unit: row.unit ?? 'un',
   price_cost: toNumber(row.price_cost),
-  price_sale: toNumber(row.price_sale),
-  profitability_pct:
-    toNumber(row.price_cost) > 0
-      ? ((toNumber(row.price_sale) - toNumber(row.price_cost)) / toNumber(row.price_cost)) * 100
-      : 0,
   quantity: toNumber(row.quantity),
   min_quantity: toNumber(row.min_quantity),
   supplier: readSupplierName(row.suppliers)
-});
-
-const mapProjectServiceItemRow = (row: any): ProjectServiceItem => ({
-  id: String(row.id),
-  project_id: String(row.project_id),
-  code: row.code ?? '',
-  description: row.description ?? '',
-  amount: toNumber(row.amount),
-  order_index: toNumber(row.order_index)
 });
 
 const mapTransactionRow = (row: any): Transaction => ({
@@ -101,6 +80,25 @@ const mapTransactionRow = (row: any): Transaction => ({
   status: row.status,
   project_id: row.project_id ?? undefined,
   vehicle_id: row.vehicle_id ?? undefined
+});
+
+const mapProjectCostRow = (row: any): ProjectCost => ({
+  id: String(row.id),
+  project_id: String(row.project_id),
+  type: row.type,
+  description: row.description ?? '',
+  amount: toNumber(row.amount),
+  date: row.date ?? new Date().toISOString().slice(0, 10),
+  notes: row.notes ?? undefined
+});
+
+const mapProjectBudgetRevisionRow = (row: any): ProjectBudgetRevision => ({
+  id: String(row.id),
+  project_id: String(row.project_id),
+  previous_value: toNumber(row.previous_value),
+  new_value: toNumber(row.new_value),
+  reason: row.reason ?? '',
+  changed_at: row.changed_at ?? new Date().toISOString()
 });
 
 const mapClientRow = (row: any): Client => ({
@@ -120,17 +118,6 @@ const mapVehicleRow = (row: any): Vehicle => ({
   current_km: toNumber(row.current_km),
   last_maintenance: row.last_maintenance ?? undefined,
   status: row.status
-});
-
-const mapReportExportRow = (row: any): ReportExport => ({
-  id: String(row.id),
-  report_name: row.report_name ?? '',
-  period_start: row.period_start ?? undefined,
-  period_end: row.period_end ?? undefined,
-  file_url: row.file_url ?? undefined,
-  file_format: row.file_format ?? 'pdf',
-  generated_at: row.generated_at ?? new Date().toISOString(),
-  notes: row.notes ?? undefined
 });
 
 const requireSupabase = () => {
@@ -201,6 +188,12 @@ export const api = {
       () => mockApi.getProjects()
     ),
 
+  getProjectById: async (projectId: string) =>
+    run(
+      async () => getProjectById(projectId),
+      () => mockApi.getProjectById(projectId)
+    ),
+
   addProject: async (project: Omit<Project, 'id'>) =>
     run(
       async () => {
@@ -212,18 +205,11 @@ export const api = {
             client_id: project.client_id,
             title: project.title,
             description: project.description ?? null,
-            service: project.service ?? null,
-            execution_time: project.execution_time ?? null,
             status: project.status,
             start_date: project.start_date ?? null,
             end_date: project.end_date ?? null,
             total_value: toNumber(project.total_value),
-            address: project.address,
-            material_cost: toNumber(project.material_cost),
-            vehicle_cost: toNumber(project.vehicle_cost),
-            labor_cost: toNumber(project.labor_cost),
-            tax_cost: toNumber(project.tax_cost),
-            invoice_sent: Boolean(project.invoice_sent)
+            address: project.address
           })
           .select('*')
           .single();
@@ -246,92 +232,144 @@ export const api = {
       async () => {
         const client = requireSupabase();
 
-        const { data: updated, error } = await client
+        const { error } = await client
           .from('projects')
           .update({
             client_id: updatedProject.client_id,
             title: updatedProject.title,
             description: updatedProject.description ?? null,
-            service: updatedProject.service ?? null,
-            execution_time: updatedProject.execution_time ?? null,
             status: updatedProject.status,
             start_date: updatedProject.start_date ?? null,
             end_date: updatedProject.end_date ?? null,
             total_value: toNumber(updatedProject.total_value),
-            address: updatedProject.address,
-            material_cost: toNumber(updatedProject.material_cost),
-            vehicle_cost: toNumber(updatedProject.vehicle_cost),
-            labor_cost: toNumber(updatedProject.labor_cost),
-            tax_cost: toNumber(updatedProject.tax_cost),
-            invoice_sent: Boolean(updatedProject.invoice_sent)
+            address: updatedProject.address
           })
-          .eq('id', updatedProject.id)
-          .select('*')
-          .single();
+          .eq('id', updatedProject.id);
 
         if (error) throw error;
 
-        const fullProject = await getProjectById(updated.id);
-        if (fullProject) return fullProject;
+        const fullProject = await getProjectById(updatedProject.id);
+        if (fullProject) {
+          return { ...fullProject, description: updatedProject.description };
+        }
 
-        return mapProjectRow({
-          ...updated,
-          client_name: updatedProject.client_name ?? ''
-        });
+        return updatedProject;
       },
       () => mockApi.updateProject(updatedProject)
     ),
 
-  getProjectServiceItems: async (projectId: string) =>
+  getProjectCosts: async (projectId: string) =>
     run(
       async () => {
         const client = requireSupabase();
         const { data, error } = await client
-          .from('project_service_items')
+          .from('project_costs')
           .select('*')
           .eq('project_id', projectId)
-          .order('order_index', { ascending: true });
+          .order('date', { ascending: false })
+          .order('created_at', { ascending: false });
 
         if (error) throw error;
-        return (data ?? []).map(mapProjectServiceItemRow);
+        return (data ?? []).map(mapProjectCostRow);
       },
-      () => mockApi.getProjectServiceItems(projectId)
+      () => mockApi.getProjectCosts(projectId)
     ),
 
-  saveProjectServiceItems: async (
-    projectId: string,
-    items: Omit<ProjectServiceItem, 'id' | 'project_id'>[]
+  addProjectCost: async (cost: Omit<ProjectCost, 'id'>) =>
+    run(
+      async () => {
+        const client = requireSupabase();
+        const { data, error } = await client
+          .from('project_costs')
+          .insert({
+            project_id: cost.project_id,
+            type: cost.type,
+            description: cost.description,
+            amount: toNumber(cost.amount),
+            date: cost.date,
+            notes: cost.notes ?? null
+          })
+          .select('*')
+          .single();
+
+        if (error) throw error;
+        return mapProjectCostRow(data);
+      },
+      () => mockApi.addProjectCost(cost)
+    ),
+
+  updateProjectCost: async (updatedCost: ProjectCost) =>
+    run(
+      async () => {
+        const client = requireSupabase();
+        const { data, error } = await client
+          .from('project_costs')
+          .update({
+            type: updatedCost.type,
+            description: updatedCost.description,
+            amount: toNumber(updatedCost.amount),
+            date: updatedCost.date,
+            notes: updatedCost.notes ?? null
+          })
+          .eq('id', updatedCost.id)
+          .select('*')
+          .single();
+
+        if (error) throw error;
+        return mapProjectCostRow(data);
+      },
+      () => mockApi.updateProjectCost(updatedCost)
+    ),
+
+  deleteProjectCost: async (id: string) =>
+    run(
+      async () => {
+        const client = requireSupabase();
+        const { error } = await client.from('project_costs').delete().eq('id', id);
+        if (error) throw error;
+        return true;
+      },
+      () => mockApi.deleteProjectCost(id)
+    ),
+
+  getProjectBudgetRevisions: async (projectId: string) =>
+    run(
+      async () => {
+        const client = requireSupabase();
+        const { data, error } = await client
+          .from('project_budget_revisions')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('changed_at', { ascending: false });
+
+        if (error) throw error;
+        return (data ?? []).map(mapProjectBudgetRevisionRow);
+      },
+      () => mockApi.getProjectBudgetRevisions(projectId)
+    ),
+
+  addProjectBudgetRevision: async (
+    revision: Omit<ProjectBudgetRevision, 'id' | 'changed_at'> & { changed_at?: string }
   ) =>
     run(
       async () => {
         const client = requireSupabase();
-
-        const { error: deleteError } = await client
-          .from('project_service_items')
-          .delete()
-          .eq('project_id', projectId);
-        if (deleteError) throw deleteError;
-
-        if (items.length === 0) return [];
-
-        const payload = items.map((item, index) => ({
-          project_id: projectId,
-          code: item.code,
-          description: item.description,
-          amount: toNumber(item.amount),
-          order_index: toNumber(item.order_index, index)
-        }));
-
         const { data, error } = await client
-          .from('project_service_items')
-          .insert(payload)
+          .from('project_budget_revisions')
+          .insert({
+            project_id: revision.project_id,
+            previous_value: toNumber(revision.previous_value),
+            new_value: toNumber(revision.new_value),
+            reason: revision.reason,
+            changed_at: revision.changed_at ?? new Date().toISOString()
+          })
           .select('*')
-          .order('order_index', { ascending: true });
+          .single();
 
         if (error) throw error;
-        return (data ?? []).map(mapProjectServiceItemRow);
+        return mapProjectBudgetRevisionRow(data);
       },
-      () => mockApi.saveProjectServiceItems(projectId, items)
+      () => mockApi.addProjectBudgetRevision(revision)
     ),
 
   // Inventory
@@ -341,7 +379,7 @@ export const api = {
         const client = requireSupabase();
         const { data, error } = await client
           .from('materials')
-          .select('id,name,unit,price_cost,price_sale,quantity,min_quantity,suppliers(name)')
+          .select('id,name,unit,price_cost,quantity,min_quantity,suppliers(name)')
           .order('name', { ascending: true });
 
         if (error) throw error;
@@ -362,12 +400,11 @@ export const api = {
             name: item.name,
             unit: item.unit,
             price_cost: toNumber(item.price_cost),
-            price_sale: toNumber(item.price_sale),
             quantity: toNumber(item.quantity),
             min_quantity: toNumber(item.min_quantity),
             supplier_id: supplierId
           })
-          .select('id,name,unit,price_cost,price_sale,quantity,min_quantity,suppliers(name)')
+          .select('id,name,unit,price_cost,quantity,min_quantity,suppliers(name)')
           .single();
 
         if (error) throw error;
@@ -388,13 +425,12 @@ export const api = {
             name: updatedItem.name,
             unit: updatedItem.unit,
             price_cost: toNumber(updatedItem.price_cost),
-            price_sale: toNumber(updatedItem.price_sale),
             quantity: toNumber(updatedItem.quantity),
             min_quantity: toNumber(updatedItem.min_quantity),
             supplier_id: supplierId
           })
           .eq('id', updatedItem.id)
-          .select('id,name,unit,price_cost,price_sale,quantity,min_quantity,suppliers(name)')
+          .select('id,name,unit,price_cost,quantity,min_quantity,suppliers(name)')
           .single();
 
         if (error) throw error;
@@ -663,44 +699,5 @@ export const api = {
         return true;
       },
       () => mockApi.deleteVehicle(id)
-    ),
-
-  // Reports
-  getReportExports: async () =>
-    run(
-      async () => {
-        const client = requireSupabase();
-        const { data, error } = await client
-          .from('report_exports')
-          .select('*')
-          .order('generated_at', { ascending: false });
-
-        if (error) throw error;
-        return (data ?? []).map(mapReportExportRow);
-      },
-      () => mockApi.getReportExports()
-    ),
-
-  addReportExport: async (reportExport: Omit<ReportExport, 'id' | 'generated_at'>) =>
-    run(
-      async () => {
-        const client = requireSupabase();
-        const { data, error } = await client
-          .from('report_exports')
-          .insert({
-            report_name: reportExport.report_name,
-            period_start: reportExport.period_start ?? null,
-            period_end: reportExport.period_end ?? null,
-            file_url: reportExport.file_url ?? null,
-            file_format: reportExport.file_format ?? 'pdf',
-            notes: reportExport.notes ?? null
-          })
-          .select('*')
-          .single();
-
-        if (error) throw error;
-        return mapReportExportRow(data);
-      },
-      () => mockApi.addReportExport(reportExport)
     )
 };
