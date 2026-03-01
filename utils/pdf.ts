@@ -39,8 +39,9 @@ export const createBasePdf = async (title: string, subtitle: string) => {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  doc.setFillColor(15, 23, 42);
-  doc.rect(0, 0, pageWidth, 80, 'F');
+  // Removido fundo escuro conforme solicitacao
+  // doc.setFillColor(15, 23, 42);
+  // doc.rect(0, 0, pageWidth, 80, 'F');
 
   const logo = await getBrandLogoDataUrl();
   let titleX = 40;
@@ -50,10 +51,14 @@ export const createBasePdf = async (title: string, subtitle: string) => {
     titleX = 145;
   }
 
-  doc.setTextColor(255, 255, 255);
+  doc.setTextColor(17, 24, 39); // Alterado para preto/escuro
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
-  doc.text(title, titleX, 40);
+
+  // Se o titulo comecar com "Orcamento:", simplifica para apenas "Orcamento"
+  const cleanTitle = title.startsWith('Orcamento:') ? 'Orcamento' : title;
+  doc.text(cleanTitle, titleX, 40);
+
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
   doc.text(subtitle, titleX, 58);
