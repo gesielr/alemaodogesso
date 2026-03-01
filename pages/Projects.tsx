@@ -1,8 +1,9 @@
 ﻿import React, { useEffect, useState } from 'react';
-import { AlertTriangle, ArrowRight, Calendar, DollarSign, Loader, MapPin, Package, Plus, Save, Search, Truck, Users } from 'lucide-react';
+import { AlertTriangle, ArrowRight, Calendar, DollarSign, Download, Loader, MapPin, Package, Plus, Save, Search, Truck, Users } from 'lucide-react';
 import Modal from '../components/Modal';
 import { api } from '../services/api';
 import { Material, Project, ProjectCost, ProjectStatus, Employee, Vehicle, ProjectQuoteItem } from '../types';
+import { createBasePdf, addStyledTable, downloadBlob, sanitizePdfFilename } from '../utils/pdf';
 
 interface ProjectsProps {
   initialSearchTerm?: string;
@@ -342,7 +343,11 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
   };
 
   const saveQuoteItems = async () => {
-    if (!selectedProject) return;
+    // Se estivermos em "Nova Obra", apenas fechamos o modal, os itens já estão no estado quoteItems
+    if (!selectedProject) {
+      setIsQuoteModalOpen(false);
+      return;
+    }
     setSavingQuote(true);
     try {
       const validItems = quoteItems.filter(item => item.description.trim());
@@ -693,16 +698,13 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <div className="w-full px-3 py-2 border border-blue-200 rounded-lg bg-blue-50 text-blue-700 font-bold flex items-center justify-between">
-                <span>{ProjectStatus.ORCAMENTO}</span>
-                <button
-                  type="button"
-                  onClick={() => setIsQuoteModalOpen(true)}
-                  className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition"
-                >
-                  Detalhar Orçamento
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => setIsQuoteModalOpen(true)}
+                className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition shadow-md flex items-center justify-center gap-2"
+              >
+                Orçamento
+              </button>
             </div>
           </div>
           <div>
@@ -1063,123 +1065,149 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
         ) : null}
       </Modal>
 
-      <Modal isOpen={isQuoteModalOpen} onClose={() => setIsQuoteModalOpen(false)} title={`Orcamento Detalhado - ${selectedProject?.title}`} maxWidth="max-w-4xl">
-        {!selectedProject ? (
-          <div className="text-sm text-gray-500">Nenhuma obra selecionada.</div>
-        ) : (
-          <div className="space-y-6">
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between">
-              <div>
-                <h4 className="font-semibold text-blue-900">Total do Orcamento</h4>
-                <p className="text-2xl font-black text-blue-700">{formatMoney(quoteItems.reduce((acc, curr) => acc + curr.total_value, 0))}</p>
-              </div>
+      <Modal isOpen={isQuoteModalOpen} onClose={() => setIsQuoteModalOpen(false)} title={`Orcamento Detalhado - ${selectedProject?.title || newProject.title || 'Nova Obra'}`} maxWidth="max-w-4xl">
+        <div className="space-y-6">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between">
+            <div>
+              <h4 className="font-semibold text-blue-900">Total do Orcamento</h4>
+              <p className="text-2xl font-black text-blue-700">{formatMoney(quoteItems.reduce((acc, curr) => acc + curr.total_value, 0))}</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={async () => {
+                  const title = selectedProject?.title || newProject.title || 'Orcamento';
+                  const subtitle = `Cliente: ${selectedProject?.client_name || newProject.client_name || '-'}`;
+                  const { doc, startY } = await createBasePdf(`Orcamento: ${title}`, subtitle);
+
+                  const headers = ['Quant.', 'Descrição do serviço', 'Valor'];
+                  const rows = quoteItems.map(item => [
+                    formatQuantity(item.quantity),
+                    item.description,
+                    formatMoney(item.total_value)
+                  ]);
+
+                  const finalY = addStyledTable(doc, headers, rows, startY);
+
+                  doc.setFont('helvetica', 'bold');
+                  doc.text('Total:', 440, finalY + 20);
+                  doc.text(formatMoney(quoteItems.reduce((acc, curr) => acc + curr.total_value, 0)), 480, finalY + 20);
+
+                  const fileName = `${sanitizePdfFilename(title)}-orcamento.pdf`;
+                  downloadBlob(doc.output('blob'), fileName);
+                }}
+                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold transition shadow-sm"
+              >
+                <Download size={18} />
+                Baixar PDF
+              </button>
               <button
                 type="button"
                 onClick={() => {
-                  const text = `Orcamento: ${selectedProject.title}\nCliente: ${selectedProject.client_name}\n\nServicos:\n${quoteItems.map(item => `- ${item.description}: ${formatMoney(item.total_value)}`).join('\n')}\n\nTotal: ${formatMoney(quoteItems.reduce((acc, curr) => acc + curr.total_value, 0))}`;
+                  const title = selectedProject?.title || newProject.title || 'Orcamento';
+                  const client = selectedProject?.client_name || newProject.client_name || '-';
+                  const text = `Orcamento: ${title}\nCliente: ${client}\n\nServicos:\n${quoteItems.map(item => `- ${item.description}: ${formatMoney(item.total_value)}`).join('\n')}\n\nTotal: ${formatMoney(quoteItems.reduce((acc, curr) => acc + curr.total_value, 0))}`;
                   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
                 }}
                 className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold transition shadow-sm"
               >
                 <Truck size={18} />
-                Compartilhar WhatsApp
-              </button>
-            </div>
-
-            <div className="max-h-[400px] overflow-y-auto border border-gray-200 rounded-xl">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="bg-gray-50 border-b border-gray-200 text-xs font-bold uppercase text-gray-500">
-                    <th className="px-4 py-3">Descricao do Servico</th>
-                    <th className="px-4 py-3 w-24">Qtd</th>
-                    <th className="px-4 py-3 w-32">Unit. (R$)</th>
-                    <th className="px-4 py-3 w-36">Total (R$)</th>
-                    <th className="px-4 py-3 w-12"></th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100 italic">
-                  {quoteItems.map((item, index) => (
-                    <tr key={index}>
-                      <td className="px-4 py-2">
-                        <input
-                          type="text"
-                          className="w-full bg-transparent border-none focus:ring-0 p-0 text-gray-900"
-                          placeholder="Ex: Forro de Gesso liso"
-                          value={item.description}
-                          onChange={(e) => {
-                            const newItems = [...quoteItems];
-                            newItems[index].description = e.target.value;
-                            setQuoteItems(newItems);
-                          }}
-                        />
-                      </td>
-                      <td className="px-4 py-2">
-                        <input
-                          type="number"
-                          className="w-full bg-transparent border-none focus:ring-0 p-0 text-gray-900"
-                          value={item.quantity}
-                          onChange={(e) => {
-                            const newItems = [...quoteItems];
-                            newItems[index].quantity = Number(e.target.value);
-                            newItems[index].total_value = newItems[index].quantity * newItems[index].unit_value;
-                            setQuoteItems(newItems);
-                          }}
-                        />
-                      </td>
-                      <td className="px-4 py-2">
-                        <input
-                          type="number"
-                          step="0.01"
-                          className="w-full bg-transparent border-none focus:ring-0 p-0 text-gray-900"
-                          value={item.unit_value}
-                          onChange={(e) => {
-                            const newItems = [...quoteItems];
-                            newItems[index].unit_value = Number(e.target.value);
-                            newItems[index].total_value = newItems[index].quantity * newItems[index].unit_value;
-                            setQuoteItems(newItems);
-                          }}
-                        />
-                      </td>
-                      <td className="px-4 py-2 font-bold text-gray-900">
-                        {formatMoney(item.total_value)}
-                      </td>
-                      <td className="px-4 py-2">
-                        <button
-                          type="button"
-                          onClick={() => setQuoteItems(quoteItems.filter((_, i) => i !== index))}
-                          className="text-red-500 hover:text-red-700"
-                        >
-                          <Plus size={16} className="rotate-45" />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setQuoteItems([...quoteItems, { description: '', quantity: 1, unit_value: 0, total_value: 0, order_index: quoteItems.length }])}
-              className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-bold text-sm"
-            >
-              <Plus size={18} />
-              Adicionar Linha
-            </button>
-
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
-              <button onClick={() => setIsQuoteModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-bold">Cancelar</button>
-              <button
-                onClick={saveQuoteItems}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-70 inline-flex items-center"
-                disabled={savingQuote}
-              >
-                {savingQuote ? <Loader size={18} className="animate-spin mr-2" /> : <Save size={18} className="mr-2" />}
-                Salvar Orcamento
+                WhatsApp
               </button>
             </div>
           </div>
-        )}
+
+          <div className="max-h-[400px] overflow-y-auto border border-gray-200 rounded-xl">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-b border-gray-200 text-xs font-bold uppercase text-gray-500">
+                  <th className="px-4 py-3 w-24">Quant.</th>
+                  <th className="px-4 py-3">Descrição do serviço</th>
+                  <th className="px-4 py-3 w-36">Valor</th>
+                  <th className="px-4 py-3 w-12"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 italic">
+                {quoteItems.map((item, index) => (
+                  <tr key={index}>
+                    <td className="px-4 py-2">
+                      <input
+                        type="number"
+                        className="w-full bg-transparent border-none focus:ring-0 p-0 text-gray-900"
+                        value={item.quantity}
+                        onChange={(e) => {
+                          const newItems = [...quoteItems];
+                          newItems[index].quantity = Number(e.target.value);
+                          newItems[index].total_value = newItems[index].quantity * newItems[index].unit_value;
+                          setQuoteItems(newItems);
+                        }}
+                      />
+                    </td>
+                    <td className="px-4 py-2">
+                      <input
+                        type="text"
+                        className="w-full bg-transparent border-none focus:ring-0 p-0 text-gray-900"
+                        placeholder="Ex: Forro de Gesso liso"
+                        value={item.description}
+                        onChange={(e) => {
+                          const newItems = [...quoteItems];
+                          newItems[index].description = e.target.value;
+                          setQuoteItems(newItems);
+                        }}
+                      />
+                    </td>
+                    <td className="px-4 py-2">
+                      <input
+                        type="number"
+                        step="0.01"
+                        className="w-full bg-transparent border-none focus:ring-0 p-0 text-gray-900 font-bold"
+                        value={item.total_value}
+                        onChange={(e) => {
+                          const newItems = [...quoteItems];
+                          newItems[index].total_value = Number(e.target.value);
+                          if (newItems[index].quantity > 0) {
+                            newItems[index].unit_value = newItems[index].total_value / newItems[index].quantity;
+                          }
+                          setQuoteItems(newItems);
+                        }}
+                      />
+                    </td>
+                    <td className="px-4 py-2 text-right">
+                      <button
+                        type="button"
+                        onClick={() => setQuoteItems(quoteItems.filter((_, i) => i !== index))}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Plus size={16} className="rotate-45" />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setQuoteItems([...quoteItems, { description: '', quantity: 1, unit_value: 0, total_value: 0, order_index: quoteItems.length }])}
+            className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-bold text-sm"
+          >
+            <Plus size={18} />
+            Adicionar Linha
+          </button>
+
+          <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+            <button onClick={() => setIsQuoteModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-bold">Fechar</button>
+            <button
+              onClick={saveQuoteItems}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-70 inline-flex items-center"
+              disabled={savingQuote}
+            >
+              {savingQuote ? <Loader size={18} className="animate-spin mr-2" /> : <Save size={18} className="mr-2" />}
+              Salvar Itens
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   );
