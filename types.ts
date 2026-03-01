@@ -65,7 +65,7 @@ export interface Project {
   total_value: number; // Valor cobrado do cliente
   entry_value?: number;
   address: string;
-  
+
   // Computed/Relation fields for frontend
   client_name?: string;
   total_cost?: number; // Custo de materiais + mão de obra
@@ -80,8 +80,21 @@ export interface ProjectCost {
   amount: number;
   date: string;
   material_id?: string;
+  employee_id?: string; // Link to worker
+  vehicle_id?: string; // Link to vehicle
   quantity?: number;
   inventory_deducted_quantity?: number;
+
+  // Labor detailing
+  labor_daily_value?: number;
+  labor_snack_value?: number;
+  labor_transport_value?: number;
+
+  // Vehicle detailing
+  vehicle_fuel_value?: number;
+  vehicle_toll_value?: number;
+  vehicle_maintenance_value?: number;
+
   notes?: string;
 }
 

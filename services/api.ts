@@ -310,6 +310,14 @@ export const api = {
             quantity: cost.quantity == null ? null : toNumber(cost.quantity),
             inventory_deducted_quantity:
               cost.inventory_deducted_quantity == null ? null : toNumber(cost.inventory_deducted_quantity),
+            employee_id: cost.employee_id ?? null,
+            vehicle_id: cost.vehicle_id ?? null,
+            labor_daily_value: toNumber(cost.labor_daily_value),
+            labor_snack_value: toNumber(cost.labor_snack_value),
+            labor_transport_value: toNumber(cost.labor_transport_value),
+            vehicle_fuel_value: toNumber(cost.vehicle_fuel_value),
+            vehicle_toll_value: toNumber(cost.vehicle_toll_value),
+            vehicle_maintenance_value: toNumber(cost.vehicle_maintenance_value),
             notes: cost.notes ?? null
           })
           .select('*')
@@ -338,6 +346,14 @@ export const api = {
               updatedCost.inventory_deducted_quantity == null
                 ? null
                 : toNumber(updatedCost.inventory_deducted_quantity),
+            employee_id: updatedCost.employee_id ?? null,
+            vehicle_id: updatedCost.vehicle_id ?? null,
+            labor_daily_value: toNumber(updatedCost.labor_daily_value),
+            labor_snack_value: toNumber(updatedCost.labor_snack_value),
+            labor_transport_value: toNumber(updatedCost.labor_transport_value),
+            vehicle_fuel_value: toNumber(updatedCost.vehicle_fuel_value),
+            vehicle_toll_value: toNumber(updatedCost.vehicle_toll_value),
+            vehicle_maintenance_value: toNumber(updatedCost.vehicle_maintenance_value),
             notes: updatedCost.notes ?? null
           })
           .eq('id', updatedCost.id)
@@ -741,7 +757,14 @@ export const api = {
           .order('model', { ascending: true });
 
         if (error) throw error;
-        return (data ?? []).map(mapVehicleRow);
+        return (data ?? []).map((row: any) => ({
+          id: String(row.id),
+          model: row.model ?? '',
+          plate: row.plate ?? '',
+          status: row.status ?? 'Ativo',
+          current_km: toNumber(row.current_km),
+          last_maintenance: row.last_maintenance ?? undefined
+        }));
       },
       () => mockApi.getVehicles()
     ),
@@ -763,7 +786,15 @@ export const api = {
           .single();
 
         if (error) throw error;
-        return mapVehicleRow(data);
+        const row = data;
+        return {
+          id: String(row.id),
+          model: row.model ?? '',
+          plate: row.plate ?? '',
+          status: row.status ?? 'Ativo',
+          current_km: toNumber(row.current_km),
+          last_maintenance: row.last_maintenance ?? undefined
+        };
       },
       () => mockApi.addVehicle(vehicle)
     ),
@@ -777,5 +808,50 @@ export const api = {
         return true;
       },
       () => mockApi.deleteVehicle(id)
+    ),
+
+  getEmployees: async () =>
+    run(
+      async () => {
+        const client = requireSupabase();
+        const { data, error } = await client
+          .from('employees')
+          .select('*')
+          .order('name', { ascending: true });
+
+        if (error) throw error;
+        return (data ?? []).map((row: any) => ({
+          id: String(row.id),
+          name: row.name ?? '',
+          role: row.role ?? '',
+          cost_per_hour: toNumber(row.cost_per_hour),
+          phone: row.phone ?? '',
+          active: Boolean(row.active)
+        }));
+      },
+      () => mockApi.getEmployees()
+    ),
+
+  getProjectBudgetRevisions: async (projectId: string) =>
+    run(
+      async () => {
+        const client = requireSupabase();
+        const { data, error } = await client
+          .from('project_budget_revisions')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('revised_at', { ascending: false });
+
+        if (error) throw error;
+        return (data ?? []).map((row: any) => ({
+          id: String(row.id),
+          project_id: String(row.project_id),
+          previous_value: toNumber(row.previous_value),
+          new_value: toNumber(row.new_value),
+          revised_at: row.revised_at,
+          reason: row.reason ?? undefined
+        }));
+      },
+      async () => []
     )
 };

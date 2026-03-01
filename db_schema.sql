@@ -143,6 +143,7 @@ create table if not exists public.projects (
   labor_cost numeric(14, 2) not null default 0 check (labor_cost >= 0),
   tax_cost numeric(14, 2) not null default 0 check (tax_cost >= 0),
   invoice_sent boolean not null default false,
+  entry_value numeric(14, 2) not null default 0 check (entry_value >= 0),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint projects_dates_check check (
@@ -206,6 +207,12 @@ create table if not exists public.project_costs (
   quantity numeric(14, 3),
   inventory_deducted_quantity numeric(14, 3),
   notes text,
+  labor_daily_value numeric(14, 2) default 0,
+  labor_snack_value numeric(14, 2) default 0,
+  labor_transport_value numeric(14, 2) default 0,
+  vehicle_fuel_value numeric(14, 2) default 0,
+  vehicle_toll_value numeric(14, 2) default 0,
+  vehicle_maintenance_value numeric(14, 2) default 0,
   created_at timestamptz not null default now()
 );
 
@@ -535,46 +542,17 @@ for each row execute function public.apply_inventory_movement();
 -- -----------------------------------------------------------
 -- VIEWS / REPORT HELPERS
 -- -----------------------------------------------------------
-create or replace view public.vw_project_financial_summary as
-select
-  p.id,
-  p.client_id,
-  c.name as client_name,
-  p.title,
-  p.status,
-  p.start_date,
-  p.end_date,
-  p.address,
-  p.total_value,
-  (
-    coalesce(sum(pc.amount), 0)
-    + coalesce(p.material_cost, 0)
-    + coalesce(p.vehicle_cost, 0)
-    + coalesce(p.labor_cost, 0)
-    + coalesce(p.tax_cost, 0)
-  )::numeric(14, 2) as total_cost,
-  (
-    p.total_value
-    - (
-      coalesce(sum(pc.amount), 0)
-      + coalesce(p.material_cost, 0)
-      + coalesce(p.vehicle_cost, 0)
-      + coalesce(p.labor_cost, 0)
-      + coalesce(p.tax_cost, 0)
-    )
-  )::numeric(14, 2) as profit_margin,
-  p.description,
-  p.service,
-  p.execution_time,
-  p.material_cost,
-  p.vehicle_cost,
-  p.labor_cost,
-  p.tax_cost,
-  p.invoice_sent
-from public.projects p
-left join public.clients c on c.id = p.client_id
-left join public.project_costs pc on pc.project_id = p.id
-group by p.id, c.name;
+CREATE OR REPLACE VIEW public.vw_project_financial_summary AS
+SELECT
+  p.id, p.client_id, c.name AS client_name, p.title, p.status, p.start_date, p.end_date, p.address,
+  p.total_value, p.entry_value,
+  (COALESCE(SUM(pc.amount), 0) + COALESCE(p.material_cost, 0) + COALESCE(p.vehicle_cost, 0) + COALESCE(p.labor_cost, 0) + COALESCE(p.tax_cost, 0))::numeric(14, 2) AS total_cost,
+  (p.total_value - (COALESCE(SUM(pc.amount), 0) + COALESCE(p.material_cost, 0) + COALESCE(p.vehicle_cost, 0) + COALESCE(p.labor_cost, 0) + COALESCE(p.tax_cost, 0)))::numeric(14, 2) AS profit_margin,
+  p.description, p.service, p.execution_time, p.material_cost, p.vehicle_cost, p.labor_cost, p.tax_cost, p.invoice_sent
+FROM public.projects p
+LEFT JOIN public.clients c ON c.id = p.client_id
+LEFT JOIN public.project_costs pc ON pc.project_id = p.id
+GROUP BY p.id, c.name;
 
 create or replace function public.get_dashboard_stats(
   p_start_date date default null,

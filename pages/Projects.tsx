@@ -2,7 +2,7 @@
 import { AlertTriangle, ArrowRight, Calendar, DollarSign, Loader, MapPin, Package, Plus, Save, Search, Truck, Users } from 'lucide-react';
 import Modal from '../components/Modal';
 import { api } from '../services/api';
-import { Material, Project, ProjectCost, ProjectStatus } from '../types';
+import { Material, Project, ProjectCost, ProjectStatus, Employee, Vehicle } from '../types';
 
 interface ProjectsProps {
   initialSearchTerm?: string;
@@ -24,6 +24,14 @@ interface GenericCostFormState {
   amount: string;
   date: string;
   notes: string;
+  employee_id?: string;
+  vehicle_id?: string;
+  labor_daily_value: string;
+  labor_snack_value: string;
+  labor_transport_value: string;
+  vehicle_fuel_value: string;
+  vehicle_toll_value: string;
+  vehicle_maintenance_value: string;
 }
 
 interface MaterialSelectionState {
@@ -63,7 +71,15 @@ const emptyGenericCostForm = (
   description: '',
   amount: '',
   date: todayDate(),
-  notes: ''
+  notes: '',
+  employee_id: '',
+  vehicle_id: '',
+  labor_daily_value: '',
+  labor_snack_value: '',
+  labor_transport_value: '',
+  vehicle_fuel_value: '',
+  vehicle_toll_value: '',
+  vehicle_maintenance_value: ''
 });
 
 const buildMaterialSelections = (materials: Material[]): Record<string, MaterialSelectionState> =>
@@ -154,10 +170,23 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
   const [inventoryMaterials, setInventoryMaterials] = useState<Material[]>([]);
   const [inventoryLoading, setInventoryLoading] = useState(false);
   const [savingCost, setSavingCost] = useState(false);
+  const [employees, setEmployees] = useState<Employee[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
 
   useEffect(() => {
     void fetchProjects();
+    void fetchBaseData();
   }, []);
+
+  const fetchBaseData = async () => {
+    try {
+      const [empData, vehData] = await Promise.all([api.getEmployees(), api.getVehicles()]);
+      setEmployees(empData);
+      setVehicles(vehData);
+    } catch (error) {
+      console.error('Erro ao carregar dados base:', error);
+    }
+  };
 
   useEffect(() => {
     if (initialSearchTerm) setSearchTerm(initialSearchTerm);
@@ -175,16 +204,16 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
       setProjectDraft((prev) =>
         prev && prev.id === updated.id
           ? {
-              ...prev,
-              title: updated.title,
-              status: updated.status,
-              address: updated.address,
-              client_name: updated.client_name,
-              total_cost: updated.total_cost,
-              profit_margin: updated.profit_margin,
-              total_value: updated.total_value,
-              entry_value: updated.entry_value ?? prev.entry_value
-            }
+            ...prev,
+            title: updated.title,
+            status: updated.status,
+            address: updated.address,
+            client_name: updated.client_name,
+            total_cost: updated.total_cost,
+            profit_margin: updated.profit_margin,
+            total_value: updated.total_value,
+            entry_value: updated.entry_value ?? prev.entry_value
+          }
           : prev
       );
     } finally {
@@ -206,16 +235,16 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
         !prev || prev.id !== projectId || replaceDraft
           ? { ...projectData }
           : {
-              ...prev,
-              title: projectData.title,
-              status: projectData.status,
-              address: projectData.address,
-              client_name: projectData.client_name,
-              total_cost: projectData.total_cost,
-              profit_margin: projectData.profit_margin,
-              total_value: projectData.total_value,
-              entry_value: projectData.entry_value ?? prev.entry_value
-            }
+            ...prev,
+            title: projectData.title,
+            status: projectData.status,
+            address: projectData.address,
+            client_name: projectData.client_name,
+            total_cost: projectData.total_cost,
+            profit_margin: projectData.profit_margin,
+            total_value: projectData.total_value,
+            entry_value: projectData.entry_value ?? prev.entry_value
+          }
       );
     } else {
       console.error(projectResult.status === 'rejected' ? projectResult.reason : 'Projeto nao encontrado');
@@ -366,12 +395,27 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
 
     setSavingCost(true);
     try {
+      const daily = toNumber(genericCostForm.labor_daily_value);
+      const snack = toNumber(genericCostForm.labor_snack_value);
+      const transport = toNumber(genericCostForm.labor_transport_value);
+      const fuel = toNumber(genericCostForm.vehicle_fuel_value);
+      const toll = toNumber(genericCostForm.vehicle_toll_value);
+      const maint = toNumber(genericCostForm.vehicle_maintenance_value);
+
       await api.addProjectCost({
         project_id: selectedProject.id,
         type: genericCostForm.type,
         description: genericCostForm.description.trim(),
         amount: toNumber(genericCostForm.amount),
         date: genericCostForm.date,
+        employee_id: genericCostForm.employee_id || undefined,
+        vehicle_id: genericCostForm.vehicle_id || undefined,
+        labor_daily_value: daily,
+        labor_snack_value: snack,
+        labor_transport_value: transport,
+        vehicle_fuel_value: fuel,
+        vehicle_toll_value: toll,
+        vehicle_maintenance_value: maint,
         notes: genericCostForm.notes.trim() || undefined
       });
 
@@ -805,40 +849,124 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
           </form>
         ) : activeCostType ? (
           <form onSubmit={saveGenericCost} className="h-full flex flex-col gap-6">
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-              <div className="xl:col-span-2 bg-white border border-gray-200 rounded-xl p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Descricao</label>
-                  <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" placeholder={`Descreva o lancamento de ${costTypeLabel[activeCostType].toLowerCase()}`} value={genericCostForm.description} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, description: e.target.value }))} />
-                </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <div className="xl:col-span-2 space-y-6">
+                <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4 shadow-sm">
+                  <h3 className="font-semibold text-gray-900 border-b border-gray-100 pb-2">Informacoes Basicas</h3>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Valor (R$)</label>
-                    <input type="number" min="0" step="0.01" className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" value={genericCostForm.amount} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, amount: e.target.value }))} />
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Descricao do Lancamento</label>
+                    <input type="text" required className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder={`Ex: ${activeCostType === 'LABOR' ? 'Montagem de Sanca' : 'Deslocamento ate a obra'}`} value={genericCostForm.description} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, description: e.target.value }))} />
                   </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Data</label>
-                    <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" value={genericCostForm.date} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, date: e.target.value }))} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Valor Total (R$)</label>
+                      <input type="number" required min="0" step="0.01" className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white font-semibold text-blue-700" value={genericCostForm.amount} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, amount: e.target.value }))} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Data</label>
+                      <input type="date" required className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" value={genericCostForm.date} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, date: e.target.value }))} />
+                    </div>
                   </div>
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Observacao</label>
-                  <textarea rows={6} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white resize-y" placeholder="Opcional" value={genericCostForm.notes} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, notes: e.target.value }))} />
+
+                {activeCostType === 'LABOR' && (
+                  <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-6 space-y-4 shadow-sm transition-all animate-in fade-in slide-in-from-top-2">
+                    <h3 className="font-semibold text-blue-900 border-b border-blue-100 pb-2 flex items-center">
+                      <Users size={18} className="mr-2" /> Detalhamento de Mao de Obra
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="col-span-1 md:col-span-2">
+                        <label className="block text-sm font-medium text-blue-800 mb-1">Montador / Funcionario</label>
+                        <select className="w-full px-3 py-2 border border-blue-200 rounded-lg bg-white" value={genericCostForm.employee_id} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, employee_id: e.target.value }))}>
+                          <option value="">Selecione um funcionario (opcional)</option>
+                          {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.role})</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-blue-800 mb-1">Valor da Diaria (R$)</label>
+                        <input type="number" min="0" step="0.01" className="w-full px-3 py-2 border border-blue-200 rounded-lg bg-white" placeholder="0,00" value={genericCostForm.labor_daily_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, labor_daily_value: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-blue-800 mb-1">Valor Alimento / Lanche (R$)</label>
+                        <input type="number" min="0" step="0.01" className="w-full px-3 py-2 border border-blue-200 rounded-lg bg-white" placeholder="0,00" value={genericCostForm.labor_snack_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, labor_snack_value: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-blue-800 mb-1">Passagem / Transporte (R$)</label>
+                        <input type="number" min="0" step="0.01" className="w-full px-3 py-2 border border-blue-200 rounded-lg bg-white" placeholder="0,00" value={genericCostForm.labor_transport_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, labor_transport_value: e.target.value }))} />
+                      </div>
+                      <div className="flex items-end">
+                        <button type="button" className="text-xs text-blue-700 underline font-medium hover:text-blue-900" onClick={() => {
+                          const total = toNumber(genericCostForm.labor_daily_value) + toNumber(genericCostForm.labor_snack_value) + toNumber(genericCostForm.labor_transport_value);
+                          if (total > 0) setGenericCostForm(prev => ({ ...prev, amount: total.toString() }));
+                        }}>Somar ao Valor Total</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeCostType === 'VEHICLE' && (
+                  <div className="bg-orange-50/50 border border-orange-100 rounded-xl p-6 space-y-4 shadow-sm transition-all animate-in fade-in slide-in-from-top-2">
+                    <h3 className="font-semibold text-orange-900 border-b border-orange-100 pb-2 flex items-center">
+                      <Truck size={18} className="mr-2" /> Detalhamento de Veiculo
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="col-span-1 md:col-span-2">
+                        <label className="block text-sm font-medium text-orange-800 mb-1">Veiculo</label>
+                        <select className="w-full px-3 py-2 border border-orange-200 rounded-lg bg-white" value={genericCostForm.vehicle_id} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, vehicle_id: e.target.value }))}>
+                          <option value="">Selecione um veiculo (opcional)</option>
+                          {vehicles.map(v => <option key={v.id} value={v.id}>{v.model} - {v.plate}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-orange-800 mb-1">Combustivel (R$)</label>
+                        <input type="number" min="0" step="0.01" className="w-full px-3 py-2 border border-orange-200 rounded-lg bg-white" placeholder="0,00" value={genericCostForm.vehicle_fuel_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, vehicle_fuel_value: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-orange-800 mb-1">Pedagio (R$)</label>
+                        <input type="number" min="0" step="0.01" className="w-full px-3 py-2 border border-orange-200 rounded-lg bg-white" placeholder="0,00" value={genericCostForm.vehicle_toll_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, vehicle_toll_value: e.target.value }))} />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-orange-800 mb-1">Manutencao/Outros (R$)</label>
+                        <input type="number" min="0" step="0.01" className="w-full px-3 py-2 border border-orange-200 rounded-lg bg-white" placeholder="0,00" value={genericCostForm.vehicle_maintenance_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, vehicle_maintenance_value: e.target.value }))} />
+                      </div>
+                      <div className="flex items-end">
+                        <button type="button" className="text-xs text-orange-700 underline font-medium hover:text-orange-900" onClick={() => {
+                          const total = toNumber(genericCostForm.vehicle_fuel_value) + toNumber(genericCostForm.vehicle_toll_value) + toNumber(genericCostForm.vehicle_maintenance_value);
+                          if (total > 0) setGenericCostForm(prev => ({ ...prev, amount: total.toString() }));
+                        }}>Somar ao Valor Total</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4 shadow-sm">
+                  <h3 className="font-semibold text-gray-900 border-b border-gray-100 pb-2">Observacoes</h3>
+                  <textarea rows={4} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white resize-y focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Relate detalhes adicionais sobre esse custo..." value={genericCostForm.notes} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, notes: e.target.value }))} />
                 </div>
               </div>
 
-              <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-3">
-                <div className="text-sm text-gray-500">Tipo de lancamento</div>
-                <div className="text-2xl font-bold text-gray-900">{costTypeLabel[activeCostType]}</div>
-                <p className="text-sm text-gray-500">Esse preenchimento agora abre em tela cheia para manter o mesmo fluxo de material, veiculo e mao de obra.</p>
+              <div className="space-y-6">
+                <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4 shadow-sm">
+                  <div className="text-sm text-gray-500 uppercase font-bold tracking-wider">Tipo de lancamento</div>
+                  <div className={`text-2xl font-black ${activeCostType === 'LABOR' ? 'text-blue-600' : 'text-orange-600'}`}>{costTypeLabel[activeCostType]}</div>
+                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-100 italic text-sm text-gray-600">
+                    "{activeCostType === 'LABOR' ? 'Use esse espaco para cadastrar diarias de montadores, ajudantes e gastos com alimentacao no local.' : 'Cadastre aqui gastos com combustivel e pedagios relativos ao transporte para essa obra.'}"
+                  </div>
+                </div>
+
+                <div className="bg-blue-600 rounded-xl p-6 text-white shadow-lg space-y-2">
+                  <div className="text-xs opacity-80 uppercase font-bold">Resumo Financeiro</div>
+                  <div className="text-3xl font-black">{formatMoney(toNumber(genericCostForm.amount))}</div>
+                  <div className="text-xs opacity-80">Lancamento para a obra: <br /><span className="font-bold underline">{selectedProject?.title}</span></div>
+                </div>
               </div>
             </div>
 
-            <div className="mt-auto border-t border-gray-200 pt-4 flex justify-end gap-3">
-              <button type="button" onClick={closeCostModal} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium" disabled={savingCost}>Cancelar</button>
-              <button type="submit" disabled={savingCost} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-70 inline-flex items-center">
-                {savingCost ? <Loader size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />}
-                Salvar lancamento
+            <div className="mt-auto border-t border-gray-200 pt-6 flex justify-end gap-3 bg-white -mx-6 -mb-6 p-6 rounded-b-xl">
+              <button type="button" onClick={closeCostModal} className="px-6 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-bold transition" disabled={savingCost}>Cancelar</button>
+              <button type="submit" disabled={savingCost} className="px-8 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-70 inline-flex items-center shadow-md transition-all active:scale-95">
+                {savingCost ? <Loader size={18} className="animate-spin mr-2" /> : <Save size={18} className="mr-2" />}
+                Confirmar Lancamento
               </button>
             </div>
           </form>
