@@ -28,8 +28,8 @@ const Modal: React.FC<ModalProps> = ({
   const contentClassName = `${fullScreen ? 'flex-1 min-h-0' : ''} p-6 overflow-y-auto ${bodyClassName}`.trim();
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-      <div className={`bg-white shadow-xl w-full overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col ${panelClassName}`}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/50 backdrop-blur-sm">
+      <div className={`bg-white shadow-xl w-full mx-auto overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col ${panelClassName}`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gray-50 shrink-0">
           <h3 className="text-lg font-bold text-gray-800">{title}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition">

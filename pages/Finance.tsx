@@ -221,16 +221,16 @@ const Finance: React.FC<FinanceProps> = ({ filterType }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">{getPageTitle()}</h1>
           <p className="text-gray-500 text-sm">
             {filterType ? `Gerencie suas ${filterType === TransactionType.RECEITA ? 'entradas' : 'saídas'} financeiras.` : 'Visão geral de fluxo de caixa.'}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <select
-            className="bg-white border border-gray-300 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 outline-none"
+            className="w-full sm:w-auto bg-white border border-gray-300 px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 outline-none"
             value={period}
             onChange={(e) => setPeriod(e.target.value as any)}
           >
@@ -239,15 +239,15 @@ const Finance: React.FC<FinanceProps> = ({ filterType }) => {
             <option value="CUSTOM">Personalizado</option>
           </select>
           {period === 'CUSTOM' && (
-            <div className="flex gap-1 items-center">
-              <input type="date" className="bg-white border border-gray-300 px-2 py-1 rounded-lg text-xs" value={customRange.start} onChange={e => setCustomRange({ ...customRange, start: e.target.value })} />
+            <div className="flex gap-1 items-center justify-between sm:justify-start">
+              <input type="date" className="bg-white border border-gray-300 px-2 py-1 rounded-lg text-xs flex-1 sm:flex-none" value={customRange.start} onChange={e => setCustomRange({ ...customRange, start: e.target.value })} />
               <span className="text-gray-400">até</span>
-              <input type="date" className="bg-white border border-gray-300 px-2 py-1 rounded-lg text-xs" value={customRange.end} onChange={e => setCustomRange({ ...customRange, end: e.target.value })} />
+              <input type="date" className="bg-white border border-gray-300 px-2 py-1 rounded-lg text-xs flex-1 sm:flex-none" value={customRange.end} onChange={e => setCustomRange({ ...customRange, end: e.target.value })} />
             </div>
           )}
           <button
             onClick={handleOpenAddModal}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm"
+            className="w-full sm:w-auto bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 shadow-sm"
           >
             Nova Transação
           </button>
@@ -289,12 +289,12 @@ const Finance: React.FC<FinanceProps> = ({ filterType }) => {
       <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 font-semibold text-gray-800 flex justify-between items-center">
           <span>{filterType ? `Listagem de ${filterType === TransactionType.RECEITA ? 'Receitas' : 'Despesas'}` : 'Últimas Movimentações'}</span>
-          <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full">
+          <span className="text-xs font-normal text-gray-500 bg-gray-100 px-2 py-1 rounded-full whitespace-nowrap">
             {filteredTx.length} registros
           </span>
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm text-gray-600">
+          <table className="w-full text-left text-sm text-gray-600 min-w-[700px]">
             <thead className="bg-gray-50 text-gray-900 font-semibold uppercase text-xs">
               <tr>
                 <th className="px-6 py-4">Data</th>

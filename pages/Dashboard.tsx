@@ -161,17 +161,17 @@ const Dashboard: React.FC<DashboardProps> = ({ onViewAllProjects }) => {
             <Calendar size={18} className="mr-2" />
             <span className="text-xs font-bold uppercase tracking-wider">Filtrar Periodo</span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
             <input
               type="date"
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full sm:w-auto px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
             />
-            <span className="text-gray-400">ate</span>
+            <span className="text-gray-400 hidden sm:inline">ate</span>
             <input
               type="date"
-              className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
+              className="w-full sm:w-auto px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
             />
@@ -197,7 +197,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onViewAllProjects }) => {
         </div>
       ) : stats ? (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
               <div className="flex justify-between items-start">
                 <div>

@@ -1130,12 +1130,12 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
 
       <Modal isOpen={isQuoteModalOpen} onClose={() => setIsQuoteModalOpen(false)} title={`Orcamento Detalhado - ${selectedProject?.title || newProject.title || 'Nova Obra'}`} maxWidth="max-w-4xl">
         <div className="space-y-6">
-          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between">
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h4 className="font-semibold text-blue-900">Total do Orcamento</h4>
               <p className="text-2xl font-black text-blue-700">{formatMoney(quoteItems.reduce((acc, curr) => acc + curr.total_value, 0))}</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <button
                 type="button"
                 onClick={async () => {
@@ -1177,7 +1177,7 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
 
                   downloadBlob(pdfBlob, fileName);
                 }}
-                className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold transition shadow-sm"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold transition shadow-sm"
               >
                 <Download size={18} />
                 Baixar PDF
@@ -1190,7 +1190,7 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
                   const text = `Orcamento: ${title}\nCliente: ${client}\n\nServicos:\n${quoteItems.map(item => `- ${item.description}: ${formatMoney(item.total_value)}`).join('\n')}\n\nTotal: ${formatMoney(quoteItems.reduce((acc, curr) => acc + curr.total_value, 0))}`;
                   window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
                 }}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold transition shadow-sm"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold transition shadow-sm"
               >
                 <Truck size={18} />
                 WhatsApp
@@ -1198,8 +1198,8 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
             </div>
           </div>
 
-          <div className="max-h-[400px] overflow-y-auto border border-gray-200 rounded-xl">
-            <table className="w-full text-left border-collapse">
+          <div className="max-h-[400px] overflow-x-auto border border-gray-200 rounded-xl">
+            <table className="w-full text-left border-collapse min-w-[500px]">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200 text-xs font-bold uppercase text-gray-500">
                   <th className="px-4 py-3 w-24">Quant.</th>
