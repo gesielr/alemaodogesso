@@ -24,8 +24,8 @@ BEGIN
     SELECT id INTO v_client_id FROM public.clients WHERE name = 'Clientes Históricos' LIMIT 1;
 
     -- OBRA: Fancorp Bloco C (Janeiro)
-    INSERT INTO public.projects (title, client_id, client_name, status, total_value, start_date)
-    VALUES ('Fancorp Bloco C', v_client_id, 'Fancorp', 'Concluido', 44626.44, '2026-01-01')
+    INSERT INTO public.projects (title, client_id, status, total_value, start_date)
+    VALUES ('Fancorp Bloco C', v_client_id, 'Concluido', 44626.44, '2026-01-01')
     RETURNING id INTO v_project_id;
 
     -- Lançamentos de Receita desta obra
@@ -35,8 +35,8 @@ BEGIN
     ('Recebimento Fancorp Bloco C (30/01)', 21008.50, 21008.50, 'Receita', 'Recebimento Obra', '2026-01-30', 'Pago', v_project_id);
 
     -- OBRA: Nati Penha
-    INSERT INTO public.projects (title, client_id, client_name, status, total_value, start_date)
-    VALUES ('Nati Penha', v_client_id, 'Nati Penha', 'Concluido', 15776.00, '2026-01-01')
+    INSERT INTO public.projects (title, client_id, status, total_value, start_date)
+    VALUES ('Nati Penha', v_client_id, 'Concluido', 15776.00, '2026-01-01')
     RETURNING id INTO v_project_id;
 
     INSERT INTO public.transactions (description, amount, paid_amount, type, category, date, status, project_id)
