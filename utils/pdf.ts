@@ -43,6 +43,10 @@ export const createBasePdf = async (title: string, subtitle: string) => {
   // doc.setFillColor(15, 23, 42);
   // doc.rect(0, 0, pageWidth, 80, 'F');
 
+  doc.setDrawColor(0, 0, 0);
+  doc.setLineWidth(1.5);
+  doc.line(40, 80, pageWidth - 40, 80); // Linha divisória solicitada
+
   const logo = await getBrandLogoDataUrl();
   let titleX = 40;
 
@@ -55,8 +59,8 @@ export const createBasePdf = async (title: string, subtitle: string) => {
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(16);
 
-  // Se o titulo comecar com "Orcamento:", simplifica para apenas "Orcamento"
-  const cleanTitle = title.startsWith('Orcamento:') ? 'Orcamento' : title;
+  // Se o titulo comecar com "Orcamento:", simplifica para apenas "Orçamento"
+  const cleanTitle = title.startsWith('Orcamento:') || title.startsWith('Orçamento:') ? 'Orçamento' : title;
   doc.text(cleanTitle, titleX, 40);
 
   doc.setFont('helvetica', 'normal');
