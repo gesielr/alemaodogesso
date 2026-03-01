@@ -37,9 +37,12 @@ export interface Material {
   name: string;
   unit: string; // m2, kg, sc, un
   price_cost: number;
+  price_sale?: number;
   quantity: number;
   min_quantity: number;
   supplier?: string;
+  profitability_pct?: number;
+  notes?: string;
 }
 
 export interface Employee {
@@ -60,6 +63,7 @@ export interface Project {
   start_date?: string;
   end_date?: string;
   total_value: number; // Valor cobrado do cliente
+  entry_value?: number;
   address: string;
   
   // Computed/Relation fields for frontend
@@ -75,7 +79,21 @@ export interface ProjectCost {
   description: string;
   amount: number;
   date: string;
+  material_id?: string;
+  quantity?: number;
+  inventory_deducted_quantity?: number;
   notes?: string;
+}
+
+export interface InventoryMovementInput {
+  material_id: string;
+  movement_type: 'Entrada' | 'Saída' | 'Ajuste';
+  quantity: number;
+  unit_cost?: number;
+  project_id?: string;
+  supplier_id?: string;
+  notes?: string;
+  movement_date: string;
 }
 
 export interface ProjectBudgetRevision {

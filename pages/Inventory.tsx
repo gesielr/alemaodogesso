@@ -1,8 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Search, AlertTriangle, Package, Trash2, Loader, Save, Edit } from 'lucide-react';
+import { AlertTriangle, Edit, Loader, Package, Plus, Save, Search, Trash2 } from 'lucide-react';
+import Modal from '../components/Modal';
 import { api } from '../services/api';
 import { Material } from '../types';
-import Modal from '../components/Modal';
+
+interface MaterialFormState {
+  name: string;
+  unit: string;
+  supplier: string;
+  price_cost: string;
+  price_sale: string;
+  quantity: string;
+  min_quantity: string;
+}
 
 const formatMoney = (value: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
@@ -12,26 +22,33 @@ const calcProfitability = (priceCost: number, priceSale: number) => {
   return ((priceSale - priceCost) / priceCost) * 100;
 };
 
+const emptyForm = (): MaterialFormState => ({
+  name: '',
+  unit: 'un',
+  supplier: '',
+  price_cost: '',
+  price_sale: '',
+  quantity: '',
+  min_quantity: ''
+});
+
+const toNumber = (value: string) => {
+  if (!value.trim()) return 0;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
 const Inventory: React.FC = () => {
   const [materials, setMaterials] = useState<Material[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [newItem, setNewItem] = useState<Partial<Material>>({
-    name: '',
-    unit: 'un',
-    price_cost: 0,
-    price_sale: 0,
-    quantity: 0,
-    min_quantity: 0,
-    supplier: ''
-  });
+  const [form, setForm] = useState<MaterialFormState>(emptyForm());
 
   useEffect(() => {
-    fetchMaterials();
+    void fetchMaterials();
   }, []);
 
   const fetchMaterials = async () => {
@@ -47,15 +64,7 @@ const Inventory: React.FC = () => {
   };
 
   const resetForm = () => {
-    setNewItem({
-      name: '',
-      unit: 'un',
-      price_cost: 0,
-      price_sale: 0,
-      quantity: 0,
-      min_quantity: 0,
-      supplier: ''
-    });
+    setForm(emptyForm());
   };
 
   const handleOpenAddModal = () => {
@@ -66,7 +75,15 @@ const Inventory: React.FC = () => {
 
   const handleOpenEditModal = (item: Material) => {
     setEditingId(item.id);
-    setNewItem({ ...item, price_sale: item.price_sale ?? 0 });
+    setForm({
+      name: item.name,
+      unit: item.unit,
+      supplier: item.supplier || '',
+      price_cost: item.price_cost ? String(item.price_cost) : '',
+      price_sale: item.price_sale ? String(item.price_sale) : '',
+      quantity: item.quantity ? String(item.quantity) : '',
+      min_quantity: item.min_quantity ? String(item.min_quantity) : ''
+    });
     setIsModalOpen(true);
   };
 
@@ -76,12 +93,14 @@ const Inventory: React.FC = () => {
 
     try {
       const itemToSave = {
-        ...newItem,
-        price_cost: Number(newItem.price_cost) || 0,
-        price_sale: Number(newItem.price_sale) || 0,
-        quantity: Number(newItem.quantity) || 0,
-        min_quantity: Number(newItem.min_quantity) || 0
-      } as Material;
+        name: form.name.trim(),
+        unit: form.unit,
+        supplier: form.supplier.trim(),
+        price_cost: toNumber(form.price_cost),
+        price_sale: toNumber(form.price_sale),
+        quantity: toNumber(form.quantity),
+        min_quantity: toNumber(form.min_quantity)
+      } as Omit<Material, 'id'>;
 
       if (editingId) {
         await api.updateItem({ ...itemToSave, id: editingId });
@@ -95,7 +114,7 @@ const Inventory: React.FC = () => {
       setEditingId(null);
     } catch (error) {
       console.error('Erro ao salvar item:', error);
-      alert('Erro ao salvar item. Tente novamente.');
+      window.alert('Erro ao salvar item. Tente novamente.');
     } finally {
       setSubmitting(false);
     }
@@ -105,22 +124,24 @@ const Inventory: React.FC = () => {
     e.stopPropagation();
     e.preventDefault();
 
-    if (window.confirm('Tem certeza que deseja excluir este item do estoque?')) {
-      try {
-        await api.deleteItem(id);
-        setMaterials((prev) => prev.filter((m) => m.id !== id));
-      } catch (error) {
-        console.error('Erro ao excluir item:', error);
-        alert('Erro ao excluir item.');
-      }
+    if (!window.confirm('Tem certeza que deseja excluir este item do estoque?')) {
+      return;
+    }
+
+    try {
+      await api.deleteItem(id);
+      setMaterials((prev) => prev.filter((material) => material.id !== id));
+    } catch (error) {
+      console.error('Erro ao excluir item:', error);
+      window.alert('Erro ao excluir item.');
     }
   };
 
-  const filteredMaterials = materials.filter((m) =>
-    m.name.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredMaterials = materials.filter((material) =>
+    material.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const formProfitability = calcProfitability(Number(newItem.price_cost) || 0, Number(newItem.price_sale) || 0);
+  const formProfitability = calcProfitability(toNumber(form.price_cost), toNumber(form.price_sale));
 
   return (
     <div className="space-y-6">
@@ -257,21 +278,21 @@ const Inventory: React.FC = () => {
               type="text"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 shadow-sm"
               placeholder="Ex: Placa de Gesso ST"
-              value={newItem.name}
-              onChange={(e) => setNewItem({ ...newItem, name: e.target.value })}
+              value={form.name}
+              onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
               disabled={submitting}
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Fornecedor</label>
               <input
                 type="text"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 shadow-sm"
                 placeholder="Nome do Fornecedor"
-                value={newItem.supplier}
-                onChange={(e) => setNewItem({ ...newItem, supplier: e.target.value })}
+                value={form.supplier}
+                onChange={(e) => setForm((prev) => ({ ...prev, supplier: e.target.value }))}
                 disabled={submitting}
               />
             </div>
@@ -279,8 +300,8 @@ const Inventory: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Unidade</label>
               <select
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 shadow-sm"
-                value={newItem.unit}
-                onChange={(e) => setNewItem({ ...newItem, unit: e.target.value })}
+                value={form.unit}
+                onChange={(e) => setForm((prev) => ({ ...prev, unit: e.target.value }))}
                 disabled={submitting}
               >
                 <option value="un">Unidade (un)</option>
@@ -295,7 +316,7 @@ const Inventory: React.FC = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Custo (R$)</label>
               <input
@@ -304,21 +325,20 @@ const Inventory: React.FC = () => {
                 step="0.01"
                 min="0"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 shadow-sm"
-                value={newItem.price_cost}
-                onChange={(e) => setNewItem({ ...newItem, price_cost: parseFloat(e.target.value) || 0 })}
+                value={form.price_cost}
+                onChange={(e) => setForm((prev) => ({ ...prev, price_cost: e.target.value }))}
                 disabled={submitting}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Preco de Venda (R$)</label>
               <input
-                required
                 type="number"
                 step="0.01"
                 min="0"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 shadow-sm"
-                value={newItem.price_sale ?? 0}
-                onChange={(e) => setNewItem({ ...newItem, price_sale: parseFloat(e.target.value) || 0 })}
+                value={form.price_sale}
+                onChange={(e) => setForm((prev) => ({ ...prev, price_sale: e.target.value }))}
                 disabled={submitting}
               />
             </div>
@@ -328,7 +348,7 @@ const Inventory: React.FC = () => {
             Rentabilidade estimada: <strong>{formProfitability.toFixed(2)}%</strong>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Qtd. Atual</label>
               <input
@@ -336,8 +356,8 @@ const Inventory: React.FC = () => {
                 type="number"
                 min="0"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 shadow-sm"
-                value={newItem.quantity}
-                onChange={(e) => setNewItem({ ...newItem, quantity: parseFloat(e.target.value) || 0 })}
+                value={form.quantity}
+                onChange={(e) => setForm((prev) => ({ ...prev, quantity: e.target.value }))}
                 disabled={submitting}
               />
             </div>
@@ -348,8 +368,8 @@ const Inventory: React.FC = () => {
                 type="number"
                 min="0"
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 shadow-sm"
-                value={newItem.min_quantity}
-                onChange={(e) => setNewItem({ ...newItem, min_quantity: parseFloat(e.target.value) || 0 })}
+                value={form.min_quantity}
+                onChange={(e) => setForm((prev) => ({ ...prev, min_quantity: e.target.value }))}
                 disabled={submitting}
               />
             </div>

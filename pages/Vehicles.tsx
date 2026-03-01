@@ -13,7 +13,7 @@ const Vehicles: React.FC = () => {
   const [newVehicle, setNewVehicle] = useState<Partial<Vehicle>>({
     model: '',
     plate: '',
-    current_km: 0,
+    current_km: undefined,
     status: 'Ativo'
   });
 
@@ -46,7 +46,7 @@ const Vehicles: React.FC = () => {
     await api.addVehicle(newVehicle as Vehicle);
     fetchVehicles();
     setIsModalOpen(false);
-    setNewVehicle({ model: '', plate: '', current_km: 0, status: 'Ativo' });
+    setNewVehicle({ model: '', plate: '', current_km: undefined, status: 'Ativo' });
   };
 
   const handleDelete = async (id: string) => {
@@ -182,7 +182,7 @@ const Vehicles: React.FC = () => {
                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">KM Atual</label>
                     <input required type="number" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 bg-white text-gray-900"
-                        value={newVehicle.current_km} onChange={e => setNewVehicle({...newVehicle, current_km: parseInt(e.target.value)})} />
+                        value={newVehicle.current_km ?? ''} onChange={e => setNewVehicle({...newVehicle, current_km: parseInt(e.target.value, 10)})} />
                 </div>
             </div>
             <div>

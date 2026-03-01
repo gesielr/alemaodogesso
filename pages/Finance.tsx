@@ -17,8 +17,8 @@ const Finance: React.FC<FinanceProps> = ({ filterType }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [newTx, setNewTx] = useState<Partial<Transaction>>({
       description: '',
-      amount: 0,
-      paid_amount: 0,
+      amount: undefined,
+      paid_amount: undefined,
       type: filterType || TransactionType.DESPESA,
       category: 'Outros',
       date: new Date().toISOString().split('T')[0],
@@ -56,8 +56,8 @@ const Finance: React.FC<FinanceProps> = ({ filterType }) => {
     setEditingId(null);
     setNewTx({
         description: '',
-        amount: 0,
-        paid_amount: 0,
+        amount: undefined,
+        paid_amount: undefined,
         type: filterType || TransactionType.DESPESA,
         category: 'Outros',
         date: new Date().toISOString().split('T')[0],
@@ -74,11 +74,13 @@ const Finance: React.FC<FinanceProps> = ({ filterType }) => {
 
   const handleSaveTx = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Logic to sync paid_amount if status is 'Pago' or keep existing if editing
+
+    const totalAmount = Number(newTx.amount || 0);
+    const paidAmount = Number(newTx.paid_amount || 0);
     const txToSave = {
         ...newTx,
-        paid_amount: newTx.status === 'Pago' ? newTx.amount : (newTx.paid_amount || 0)
+        amount: totalAmount,
+        paid_amount: newTx.status === 'Pago' ? totalAmount : paidAmount
     };
 
     if (editingId) {
@@ -92,8 +94,8 @@ const Finance: React.FC<FinanceProps> = ({ filterType }) => {
     setEditingId(null);
     setNewTx({
         description: '',
-        amount: 0,
-        paid_amount: 0,
+        amount: undefined,
+        paid_amount: undefined,
         type: filterType || TransactionType.DESPESA,
         category: 'Outros',
         date: new Date().toISOString().split('T')[0],
@@ -313,7 +315,7 @@ const Finance: React.FC<FinanceProps> = ({ filterType }) => {
                     required
                     type="number" step="0.01"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 bg-white text-gray-900"
-                    value={newTx.amount}
+                    value={newTx.amount ?? ''}
                     onChange={e => setNewTx({...newTx, amount: parseFloat(e.target.value)})}
                 />
              </div>

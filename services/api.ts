@@ -1,6 +1,7 @@
 import {
   Client,
   DashboardStats,
+  InventoryMovementInput,
   Material,
   Project,
   ProjectBudgetRevision,
@@ -19,6 +20,9 @@ const toNumber = (value: unknown, fallback = 0): number => {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
 };
+
+const calculateProfitability = (priceCost: number, priceSale: number) =>
+  priceCost > 0 ? ((priceSale - priceCost) / priceCost) * 100 : 0;
 
 const warnUsingMockFallback = () => {
   if (hasWarnedAboutFallback) return;
@@ -54,20 +58,29 @@ const mapProjectRow = (row: any): Project => ({
   start_date: row.start_date ?? undefined,
   end_date: row.end_date ?? undefined,
   total_value: toNumber(row.total_value),
+  entry_value: row.entry_value == null ? 0 : toNumber(row.entry_value),
   address: row.address ?? '',
   total_cost: row.total_cost == null ? undefined : toNumber(row.total_cost),
   profit_margin: row.profit_margin == null ? undefined : toNumber(row.profit_margin)
 });
 
-const mapMaterialRow = (row: any): Material => ({
-  id: String(row.id),
-  name: row.name ?? '',
-  unit: row.unit ?? 'un',
-  price_cost: toNumber(row.price_cost),
-  quantity: toNumber(row.quantity),
-  min_quantity: toNumber(row.min_quantity),
-  supplier: readSupplierName(row.suppliers)
-});
+const mapMaterialRow = (row: any): Material => {
+  const priceCost = toNumber(row.price_cost);
+  const priceSale = toNumber(row.price_sale);
+
+  return {
+    id: String(row.id),
+    name: row.name ?? '',
+    unit: row.unit ?? 'un',
+    price_cost: priceCost,
+    price_sale: priceSale,
+    quantity: toNumber(row.quantity),
+    min_quantity: toNumber(row.min_quantity),
+    supplier: readSupplierName(row.suppliers),
+    profitability_pct: calculateProfitability(priceCost, priceSale),
+    notes: row.notes ?? undefined
+  };
+};
 
 const mapTransactionRow = (row: any): Transaction => ({
   id: String(row.id),
@@ -89,6 +102,10 @@ const mapProjectCostRow = (row: any): ProjectCost => ({
   description: row.description ?? '',
   amount: toNumber(row.amount),
   date: row.date ?? new Date().toISOString().slice(0, 10),
+  material_id: row.material_id ? String(row.material_id) : undefined,
+  quantity: row.quantity == null ? undefined : toNumber(row.quantity),
+  inventory_deducted_quantity:
+    row.inventory_deducted_quantity == null ? undefined : toNumber(row.inventory_deducted_quantity),
   notes: row.notes ?? undefined
 });
 
@@ -209,6 +226,7 @@ export const api = {
             start_date: project.start_date ?? null,
             end_date: project.end_date ?? null,
             total_value: toNumber(project.total_value),
+            entry_value: toNumber(project.entry_value),
             address: project.address
           })
           .select('*')
@@ -242,6 +260,7 @@ export const api = {
             start_date: updatedProject.start_date ?? null,
             end_date: updatedProject.end_date ?? null,
             total_value: toNumber(updatedProject.total_value),
+            entry_value: toNumber(updatedProject.entry_value),
             address: updatedProject.address
           })
           .eq('id', updatedProject.id);
@@ -287,6 +306,10 @@ export const api = {
             description: cost.description,
             amount: toNumber(cost.amount),
             date: cost.date,
+            material_id: cost.material_id ?? null,
+            quantity: cost.quantity == null ? null : toNumber(cost.quantity),
+            inventory_deducted_quantity:
+              cost.inventory_deducted_quantity == null ? null : toNumber(cost.inventory_deducted_quantity),
             notes: cost.notes ?? null
           })
           .select('*')
@@ -309,6 +332,12 @@ export const api = {
             description: updatedCost.description,
             amount: toNumber(updatedCost.amount),
             date: updatedCost.date,
+            material_id: updatedCost.material_id ?? null,
+            quantity: updatedCost.quantity == null ? null : toNumber(updatedCost.quantity),
+            inventory_deducted_quantity:
+              updatedCost.inventory_deducted_quantity == null
+                ? null
+                : toNumber(updatedCost.inventory_deducted_quantity),
             notes: updatedCost.notes ?? null
           })
           .eq('id', updatedCost.id)
@@ -379,7 +408,7 @@ export const api = {
         const client = requireSupabase();
         const { data, error } = await client
           .from('materials')
-          .select('id,name,unit,price_cost,quantity,min_quantity,suppliers(name)')
+          .select('id,name,unit,price_cost,price_sale,quantity,min_quantity,notes,suppliers(name)')
           .order('name', { ascending: true });
 
         if (error) throw error;
@@ -400,11 +429,13 @@ export const api = {
             name: item.name,
             unit: item.unit,
             price_cost: toNumber(item.price_cost),
+            price_sale: toNumber(item.price_sale),
             quantity: toNumber(item.quantity),
             min_quantity: toNumber(item.min_quantity),
-            supplier_id: supplierId
+            supplier_id: supplierId,
+            notes: item.notes ?? null
           })
-          .select('id,name,unit,price_cost,quantity,min_quantity,suppliers(name)')
+          .select('id,name,unit,price_cost,price_sale,quantity,min_quantity,notes,suppliers(name)')
           .single();
 
         if (error) throw error;
@@ -425,12 +456,14 @@ export const api = {
             name: updatedItem.name,
             unit: updatedItem.unit,
             price_cost: toNumber(updatedItem.price_cost),
+            price_sale: toNumber(updatedItem.price_sale),
             quantity: toNumber(updatedItem.quantity),
             min_quantity: toNumber(updatedItem.min_quantity),
-            supplier_id: supplierId
+            supplier_id: supplierId,
+            notes: updatedItem.notes ?? null
           })
           .eq('id', updatedItem.id)
-          .select('id,name,unit,price_cost,quantity,min_quantity,suppliers(name)')
+          .select('id,name,unit,price_cost,price_sale,quantity,min_quantity,notes,suppliers(name)')
           .single();
 
         if (error) throw error;
@@ -448,6 +481,27 @@ export const api = {
         return true;
       },
       () => mockApi.deleteItem(id)
+    ),
+
+  addInventoryMovement: async (movement: InventoryMovementInput) =>
+    run(
+      async () => {
+        const client = requireSupabase();
+        const { error } = await client.from('inventory_movements').insert({
+          material_id: movement.material_id,
+          movement_type: movement.movement_type,
+          quantity: toNumber(movement.quantity),
+          unit_cost: movement.unit_cost == null ? null : toNumber(movement.unit_cost),
+          project_id: movement.project_id ?? null,
+          supplier_id: movement.supplier_id ?? null,
+          notes: movement.notes ?? null,
+          movement_date: movement.movement_date
+        });
+
+        if (error) throw error;
+        return true;
+      },
+      () => mockApi.addInventoryMovement(movement)
     ),
 
   // Transactions
@@ -550,6 +604,30 @@ export const api = {
         });
         return true;
       }
+    ),
+
+  addReportExport: async (reportExport: {
+    report_name: string;
+    period_start?: string;
+    period_end?: string;
+    file_format?: string;
+    notes?: string;
+  }) =>
+    run(
+      async () => {
+        const client = requireSupabase();
+        const { error } = await client.from('report_exports').insert({
+          report_name: reportExport.report_name,
+          period_start: reportExport.period_start ?? null,
+          period_end: reportExport.period_end ?? null,
+          file_format: reportExport.file_format ?? 'pdf',
+          notes: reportExport.notes ?? null
+        });
+
+        if (error) throw error;
+        return true;
+      },
+      () => mockApi.addReportExport(reportExport)
     ),
 
   // Dashboard
