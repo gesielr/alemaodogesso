@@ -126,9 +126,9 @@ const mapProjectServiceItemRow = (row: any): ProjectQuoteItem => ({
   id: String(row.id),
   project_id: String(row.project_id),
   description: row.description ?? '',
-  quantity: row.quantity == null ? undefined : toNumber(row.quantity),
+  quantity: row.quantity == null ? 1 : toNumber(row.quantity, 1),
   unit_value: toNumber(row.unit_value),
-  total_value: toNumber(row.total_value),
+  total_value: toNumber(row.total_value || row.amount),
   order_index: toNumber(row.order_index)
 });
 
