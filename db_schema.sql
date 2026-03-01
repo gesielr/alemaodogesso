@@ -203,6 +203,9 @@ create table if not exists public.project_costs (
   material_id uuid references public.materials(id) on delete set null,
   employee_id uuid references public.employees(id) on delete set null,
   vehicle_id uuid references public.vehicles(id) on delete set null,
+  quantity numeric(14, 3),
+  inventory_deducted_quantity numeric(14, 3),
+  notes text,
   created_at timestamptz not null default now()
 );
 
