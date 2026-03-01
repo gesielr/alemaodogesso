@@ -386,23 +386,28 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
         clientId = createdClient.id;
       }
 
-      await api.addProject({
+      const createdProject = await api.addProject({
         title: newProject.title.trim(),
         client_id: clientId,
         client_name: clientName,
         description: '',
-        status: newProject.status,
+        status: ProjectStatus.ORCAMENTO,
         start_date: todayDate(),
         end_date: undefined,
-        total_value: toNumber(newProject.total_value),
+        total_value: quoteItems.reduce((acc, curr) => acc + curr.total_value, 0) || toNumber(newProject.total_value),
         entry_value: 0,
         address: newProject.address.trim(),
         execution_deadline_days: toNumber(newProject.execution_deadline_days)
       });
 
+      if (quoteItems.length > 0 && quoteItems[0].description.trim()) {
+        await api.updateProjectServiceItems(createdProject.id, quoteItems.filter(item => item.description.trim()));
+      }
+
       await fetchProjects(false);
       setIsModalOpen(false);
       setNewProject(emptyNewProject());
+      setQuoteItems([{ description: '', quantity: 1, unit_value: 0, total_value: 0, order_index: 0 }]);
     } catch (error) {
       console.error(error);
       window.alert('Nao foi possivel cadastrar a obra.');
@@ -688,9 +693,16 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900" value={newProject.status} onChange={(e) => setNewProject((prev) => ({ ...prev, status: e.target.value as ProjectStatus }))}>
-                {Object.values(ProjectStatus).map((status) => <option key={status} value={status}>{status}</option>)}
-              </select>
+              <div className="w-full px-3 py-2 border border-blue-200 rounded-lg bg-blue-50 text-blue-700 font-bold flex items-center justify-between">
+                <span>{ProjectStatus.ORCAMENTO}</span>
+                <button
+                  type="button"
+                  onClick={() => setIsQuoteModalOpen(true)}
+                  className="text-xs bg-blue-600 text-white px-2 py-1 rounded hover:bg-blue-700 transition"
+                >
+                  Detalhar Orçamento
+                </button>
+              </div>
             </div>
           </div>
           <div>
