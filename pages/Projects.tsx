@@ -2,7 +2,7 @@
 import { AlertTriangle, ArrowRight, Calendar, DollarSign, Download, Loader, MapPin, Package, Plus, Save, Search, Truck, Users } from 'lucide-react';
 import Modal from '../components/Modal';
 import { api } from '../services/api';
-import { Material, Project, ProjectCost, ProjectStatus, Employee, Vehicle, ProjectQuoteItem } from '../types';
+import { Material, Project, ProjectCost, ProjectStatus, Employee, Vehicle, ProjectQuoteItem, ProjectQuoteDocument } from '../types';
 import { createBasePdf, addStyledTable, downloadBlob, sanitizePdfFilename } from '../utils/pdf';
 
 interface ProjectsProps {
@@ -180,6 +180,8 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
   const [quoteItems, setQuoteItems] = useState<Omit<ProjectQuoteItem, 'id' | 'project_id'>[]>([]);
   const [savingQuote, setSavingQuote] = useState(false);
+  const [quoteDocuments, setQuoteDocuments] = useState<ProjectQuoteDocument[]>([]);
+  const [loadingDocs, setLoadingDocs] = useState(false);
 
   useEffect(() => {
     void fetchProjects();
@@ -333,12 +335,19 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
   const openQuoteModal = async (project: Project) => {
     setSelectedProject(project);
     setIsQuoteModalOpen(true);
+    setLoadingDocs(true);
     try {
-      const items = await api.getProjectServiceItems(project.id);
+      const [items, docs] = await Promise.all([
+        api.getProjectServiceItems(project.id),
+        api.getProjectQuoteDocuments(project.id)
+      ]);
       setQuoteItems(items.length > 0 ? items : [{ description: '', quantity: 1, unit_value: 0, total_value: 0, order_index: 0 }]);
+      setQuoteDocuments(docs);
     } catch (error) {
       console.error(error);
       setQuoteItems([{ description: '', quantity: 1, unit_value: 0, total_value: 0, order_index: 0 }]);
+    } finally {
+      setLoadingDocs(false);
     }
   };
 
@@ -1094,7 +1103,25 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
                   doc.text(formatMoney(quoteItems.reduce((acc, curr) => acc + curr.total_value, 0)), 480, finalY + 20);
 
                   const fileName = `${sanitizePdfFilename(title)}-orcamento.pdf`;
-                  downloadBlob(doc.output('blob'), fileName);
+                  const pdfBlob = doc.output('blob');
+
+                  // Salvar no banco se a obra já existir
+                  if (selectedProject?.id) {
+                    const reader = new FileReader();
+                    reader.onloadend = async () => {
+                      const base64data = reader.result as string;
+                      await api.addProjectQuoteDocument({
+                        project_id: selectedProject.id,
+                        file_name: fileName,
+                        file_content: base64data
+                      });
+                      const updatedDocs = await api.getProjectQuoteDocuments(selectedProject.id);
+                      setQuoteDocuments(updatedDocs);
+                    };
+                    reader.readAsDataURL(pdfBlob);
+                  }
+
+                  downloadBlob(pdfBlob, fileName);
                 }}
                 className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold transition shadow-sm"
               >
@@ -1207,6 +1234,51 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
               Salvar Itens
             </button>
           </div>
+
+          {selectedProject && quoteDocuments.length > 0 && (
+            <div className="pt-6 border-t border-gray-100">
+              <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                <Package size={16} />
+                Histórico de Orçamentos Arquivados
+              </h4>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                {quoteDocuments.map((doc) => (
+                  <div key={doc.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200 text-xs">
+                    <div className="truncate pr-2">
+                      <div className="font-bold text-gray-800 truncate">{doc.file_name}</div>
+                      <div className="text-gray-500">{new Date(doc.created_at).toLocaleString('pt-BR')}</div>
+                    </div>
+                    <div className="flex gap-1 shrink-0">
+                      <button
+                        onClick={() => {
+                          const link = document.createElement('a');
+                          link.href = doc.file_content;
+                          link.download = doc.file_name;
+                          link.click();
+                        }}
+                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"
+                        title="Baixar"
+                      >
+                        <Download size={14} />
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (confirm('Deseja excluir este orçamento arquivado?')) {
+                            await api.deleteProjectQuoteDocument(doc.id);
+                            setQuoteDocuments(quoteDocuments.filter(d => d.id !== doc.id));
+                          }
+                        }}
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded"
+                        title="Excluir"
+                      >
+                        <Plus size={14} className="rotate-45" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </Modal>
     </div>

@@ -7,6 +7,7 @@ import {
   ProjectBudgetRevision,
   ProjectCost,
   ProjectQuoteItem,
+  ProjectQuoteDocument,
   Transaction,
   Vehicle
 } from '../types';
@@ -138,6 +139,14 @@ const mapProjectBudgetRevisionRow = (row: any): ProjectBudgetRevision => ({
   new_value: toNumber(row.new_value),
   reason: row.reason ?? '',
   changed_at: row.changed_at ?? new Date().toISOString()
+});
+
+const mapProjectQuoteDocumentRow = (row: any): ProjectQuoteDocument => ({
+  id: String(row.id),
+  project_id: String(row.project_id),
+  file_name: row.file_name ?? 'documento.pdf',
+  file_content: row.file_content ?? '',
+  created_at: row.created_at ?? new Date().toISOString()
 });
 
 const mapClientRow = (row: any): Client => ({
@@ -442,6 +451,49 @@ export const api = {
         return mapProjectBudgetRevisionRow(data);
       },
       () => mockApi.addProjectBudgetRevision(revision)
+    ),
+
+  getProjectQuoteDocuments: async (projectId: string) =>
+    run(
+      async () => {
+        const client = requireSupabase();
+        const { data, error } = await client
+          .from('project_quote_documents')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        return (data ?? []).map(mapProjectQuoteDocumentRow);
+      },
+      async () => []
+    ),
+
+  addProjectQuoteDocument: async (doc: Omit<ProjectQuoteDocument, 'id' | 'created_at'>) =>
+    run(
+      async () => {
+        const client = requireSupabase();
+        const { data, error } = await client
+          .from('project_quote_documents')
+          .insert(doc)
+          .select('*')
+          .single();
+
+        if (error) throw error;
+        return mapProjectQuoteDocumentRow(data);
+      },
+      async () => ({ ...doc, id: Math.random().toString(), created_at: new Date().toISOString() })
+    ),
+
+  deleteProjectQuoteDocument: async (id: string) =>
+    run(
+      async () => {
+        const client = requireSupabase();
+        const { error } = await client.from('project_quote_documents').delete().eq('id', id);
+        if (error) throw error;
+        return true;
+      },
+      async () => true
     ),
 
   getProjectServiceItems: async (projectId: string) =>

@@ -161,3 +161,11 @@ export interface DashboardStats {
   active_projects: number;
   low_stock_items: number;
 }
+
+export interface ProjectQuoteDocument {
+  id: string;
+  project_id: string;
+  file_name: string;
+  file_content: string; // Base64
+  created_at: string;
+}
