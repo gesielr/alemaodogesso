@@ -65,6 +65,8 @@ export interface Project {
   total_value: number; // Valor cobrado do cliente
   entry_value?: number;
   address: string;
+  execution_deadline_days?: number;
+  approved_at?: string;
 
   // Computed/Relation fields for frontend
   client_name?: string;
@@ -81,6 +83,7 @@ export interface ProjectCost {
   date: string;
   material_id?: string;
   employee_id?: string; // Link to worker
+  worker_name?: string; // For manual name entry
   vehicle_id?: string; // Link to vehicle
   quantity?: number;
   inventory_deducted_quantity?: number;
@@ -96,6 +99,16 @@ export interface ProjectCost {
   vehicle_maintenance_value?: number;
 
   notes?: string;
+}
+
+export interface ProjectQuoteItem {
+  id: string;
+  project_id: string;
+  description: string;
+  quantity?: number;
+  unit_value: number;
+  total_value: number;
+  order_index?: number;
 }
 
 export interface InventoryMovementInput {

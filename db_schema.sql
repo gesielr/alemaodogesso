@@ -144,6 +144,8 @@ create table if not exists public.projects (
   tax_cost numeric(14, 2) not null default 0 check (tax_cost >= 0),
   invoice_sent boolean not null default false,
   entry_value numeric(14, 2) not null default 0 check (entry_value >= 0),
+  execution_deadline_days integer default 0,
+  approved_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint projects_dates_check check (
@@ -313,6 +315,22 @@ drop trigger if exists trg_projects_updated_at on public.projects;
 create trigger trg_projects_updated_at
 before update on public.projects
 for each row execute function public.set_updated_at();
+
+-- Trigger para definir approved_at
+create or replace function public.set_project_approved_at()
+returns trigger as $$
+begin
+  if new.status = 'Aprovado' and (old.status is null or old.status != 'Aprovado') then
+    new.approved_at = now();
+  end if;
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists trg_set_project_approved_at on public.projects;
+create trigger trg_set_project_approved_at
+before update on public.projects
+for each row execute function public.set_project_approved_at();
 
 drop trigger if exists trg_project_service_items_updated_at on public.project_service_items;
 create trigger trg_project_service_items_updated_at

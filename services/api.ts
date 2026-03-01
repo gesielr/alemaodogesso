@@ -6,6 +6,7 @@ import {
   Project,
   ProjectBudgetRevision,
   ProjectCost,
+  ProjectQuoteItem,
   Transaction,
   Vehicle
 } from '../types';
@@ -60,6 +61,8 @@ const mapProjectRow = (row: any): Project => ({
   total_value: toNumber(row.total_value),
   entry_value: row.entry_value == null ? 0 : toNumber(row.entry_value),
   address: row.address ?? '',
+  execution_deadline_days: toNumber(row.execution_deadline_days),
+  approved_at: row.approved_at ?? undefined,
   total_cost: row.total_cost == null ? undefined : toNumber(row.total_cost),
   profit_margin: row.profit_margin == null ? undefined : toNumber(row.profit_margin)
 });
@@ -106,7 +109,26 @@ const mapProjectCostRow = (row: any): ProjectCost => ({
   quantity: row.quantity == null ? undefined : toNumber(row.quantity),
   inventory_deducted_quantity:
     row.inventory_deducted_quantity == null ? undefined : toNumber(row.inventory_deducted_quantity),
+  employee_id: row.employee_id ? String(row.employee_id) : undefined,
+  worker_name: row.worker_name ?? undefined,
+  vehicle_id: row.vehicle_id ? String(row.vehicle_id) : undefined,
+  labor_daily_value: toNumber(row.labor_daily_value),
+  labor_snack_value: toNumber(row.labor_snack_value),
+  labor_transport_value: toNumber(row.labor_transport_value),
+  vehicle_fuel_value: toNumber(row.vehicle_fuel_value),
+  vehicle_toll_value: toNumber(row.vehicle_toll_value),
+  vehicle_maintenance_value: toNumber(row.vehicle_maintenance_value),
   notes: row.notes ?? undefined
+});
+
+const mapProjectServiceItemRow = (row: any): ProjectQuoteItem => ({
+  id: String(row.id),
+  project_id: String(row.project_id),
+  description: row.description ?? '',
+  quantity: row.quantity == null ? undefined : toNumber(row.quantity),
+  unit_value: toNumber(row.unit_value),
+  total_value: toNumber(row.total_value),
+  order_index: toNumber(row.order_index)
 });
 
 const mapProjectBudgetRevisionRow = (row: any): ProjectBudgetRevision => ({
@@ -227,7 +249,8 @@ export const api = {
             end_date: project.end_date ?? null,
             total_value: toNumber(project.total_value),
             entry_value: toNumber(project.entry_value),
-            address: project.address
+            address: project.address,
+            execution_deadline_days: toNumber(project.execution_deadline_days)
           })
           .select('*')
           .single();
@@ -261,7 +284,9 @@ export const api = {
             end_date: updatedProject.end_date ?? null,
             total_value: toNumber(updatedProject.total_value),
             entry_value: toNumber(updatedProject.entry_value),
-            address: updatedProject.address
+            address: updatedProject.address,
+            execution_deadline_days: toNumber(updatedProject.execution_deadline_days),
+            approved_at: updatedProject.approved_at || null
           })
           .eq('id', updatedProject.id);
 
@@ -311,6 +336,7 @@ export const api = {
             inventory_deducted_quantity:
               cost.inventory_deducted_quantity == null ? null : toNumber(cost.inventory_deducted_quantity),
             employee_id: cost.employee_id ?? null,
+            worker_name: cost.worker_name ?? null,
             vehicle_id: cost.vehicle_id ?? null,
             labor_daily_value: toNumber(cost.labor_daily_value),
             labor_snack_value: toNumber(cost.labor_snack_value),
@@ -347,6 +373,7 @@ export const api = {
                 ? null
                 : toNumber(updatedCost.inventory_deducted_quantity),
             employee_id: updatedCost.employee_id ?? null,
+            worker_name: updatedCost.worker_name ?? null,
             vehicle_id: updatedCost.vehicle_id ?? null,
             labor_daily_value: toNumber(updatedCost.labor_daily_value),
             labor_snack_value: toNumber(updatedCost.labor_snack_value),
@@ -415,6 +442,57 @@ export const api = {
         return mapProjectBudgetRevisionRow(data);
       },
       () => mockApi.addProjectBudgetRevision(revision)
+    ),
+
+  getProjectServiceItems: async (projectId: string) =>
+    run(
+      async () => {
+        const client = requireSupabase();
+        const { data, error } = await client
+          .from('project_service_items')
+          .select('*')
+          .eq('project_id', projectId)
+          .order('order_index', { ascending: true });
+
+        if (error) throw error;
+        return (data ?? []).map(mapProjectServiceItemRow);
+      },
+      () => mockApi.getProjectServiceItems(projectId)
+    ),
+
+  updateProjectServiceItems: async (projectId: string, items: Omit<ProjectQuoteItem, 'id' | 'project_id'>[]) =>
+    run(
+      async () => {
+        const client = requireSupabase();
+
+        // Remove existing items and insert new ones for consistency
+        const { error: deleteError } = await client
+          .from('project_service_items')
+          .delete()
+          .eq('project_id', projectId);
+
+        if (deleteError) throw deleteError;
+
+        if (items.length === 0) return [];
+
+        const { data, error: insertError } = await client
+          .from('project_service_items')
+          .insert(
+            items.map((item, index) => ({
+              project_id: projectId,
+              description: item.description,
+              quantity: toNumber(item.quantity, 1),
+              unit_value: toNumber(item.unit_value),
+              total_value: toNumber(item.total_value),
+              order_index: item.order_index ?? index
+            }))
+          )
+          .select('*');
+
+        if (insertError) throw insertError;
+        return (data ?? []).map(mapProjectServiceItemRow);
+      },
+      () => mockApi.updateProjectServiceItems(projectId, items)
     ),
 
   // Inventory
@@ -757,14 +835,7 @@ export const api = {
           .order('model', { ascending: true });
 
         if (error) throw error;
-        return (data ?? []).map((row: any) => ({
-          id: String(row.id),
-          model: row.model ?? '',
-          plate: row.plate ?? '',
-          status: row.status ?? 'Ativo',
-          current_km: toNumber(row.current_km),
-          last_maintenance: row.last_maintenance ?? undefined
-        }));
+        return (data ?? []).map(mapVehicleRow);
       },
       () => mockApi.getVehicles()
     ),
@@ -786,15 +857,7 @@ export const api = {
           .single();
 
         if (error) throw error;
-        const row = data;
-        return {
-          id: String(row.id),
-          model: row.model ?? '',
-          plate: row.plate ?? '',
-          status: row.status ?? 'Ativo',
-          current_km: toNumber(row.current_km),
-          last_maintenance: row.last_maintenance ?? undefined
-        };
+        return mapVehicleRow(data);
       },
       () => mockApi.addVehicle(vehicle)
     ),
@@ -830,28 +893,5 @@ export const api = {
         }));
       },
       () => mockApi.getEmployees()
-    ),
-
-  getProjectBudgetRevisions: async (projectId: string) =>
-    run(
-      async () => {
-        const client = requireSupabase();
-        const { data, error } = await client
-          .from('project_budget_revisions')
-          .select('*')
-          .eq('project_id', projectId)
-          .order('revised_at', { ascending: false });
-
-        if (error) throw error;
-        return (data ?? []).map((row: any) => ({
-          id: String(row.id),
-          project_id: String(row.project_id),
-          previous_value: toNumber(row.previous_value),
-          new_value: toNumber(row.new_value),
-          revised_at: row.revised_at,
-          reason: row.reason ?? undefined
-        }));
-      },
-      async () => []
     )
 };

@@ -2,7 +2,7 @@
 import { AlertTriangle, ArrowRight, Calendar, DollarSign, Loader, MapPin, Package, Plus, Save, Search, Truck, Users } from 'lucide-react';
 import Modal from '../components/Modal';
 import { api } from '../services/api';
-import { Material, Project, ProjectCost, ProjectStatus, Employee, Vehicle } from '../types';
+import { Material, Project, ProjectCost, ProjectStatus, Employee, Vehicle, ProjectQuoteItem } from '../types';
 
 interface ProjectsProps {
   initialSearchTerm?: string;
@@ -16,6 +16,7 @@ interface NewProjectFormState {
   total_value: string;
   address: string;
   status: ProjectStatus;
+  execution_deadline_days: string;
 }
 
 interface GenericCostFormState {
@@ -25,6 +26,7 @@ interface GenericCostFormState {
   date: string;
   notes: string;
   employee_id?: string;
+  worker_name: string;
   vehicle_id?: string;
   labor_daily_value: string;
   labor_snack_value: string;
@@ -61,7 +63,8 @@ const emptyNewProject = (): NewProjectFormState => ({
   client_name: '',
   total_value: '',
   address: '',
-  status: ProjectStatus.ORCAMENTO
+  status: ProjectStatus.ORCAMENTO,
+  execution_deadline_days: ''
 });
 
 const emptyGenericCostForm = (
@@ -73,6 +76,7 @@ const emptyGenericCostForm = (
   date: todayDate(),
   notes: '',
   employee_id: '',
+  worker_name: '',
   vehicle_id: '',
   labor_daily_value: '',
   labor_snack_value: '',
@@ -172,6 +176,9 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
   const [savingCost, setSavingCost] = useState(false);
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
+  const [quoteItems, setQuoteItems] = useState<Omit<ProjectQuoteItem, 'id' | 'project_id'>[]>([]);
+  const [savingQuote, setSavingQuote] = useState(false);
 
   useEffect(() => {
     void fetchProjects();
@@ -212,7 +219,8 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
             total_cost: updated.total_cost,
             profit_margin: updated.profit_margin,
             total_value: updated.total_value,
-            entry_value: updated.entry_value ?? prev.entry_value
+            entry_value: updated.entry_value ?? prev.entry_value,
+            execution_deadline_days: updated.execution_deadline_days
           }
           : prev
       );
@@ -243,7 +251,8 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
             total_cost: projectData.total_cost,
             profit_margin: projectData.profit_margin,
             total_value: projectData.total_value,
-            entry_value: projectData.entry_value ?? prev.entry_value
+            entry_value: projectData.entry_value ?? prev.entry_value,
+            execution_deadline_days: projectData.execution_deadline_days
           }
       );
     } else {
@@ -320,6 +329,40 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
     setGenericCostForm(emptyGenericCostForm(type));
   };
 
+  const openQuoteModal = async (project: Project) => {
+    setSelectedProject(project);
+    setIsQuoteModalOpen(true);
+    try {
+      const items = await api.getProjectServiceItems(project.id);
+      setQuoteItems(items.length > 0 ? items : [{ description: '', quantity: 1, unit_value: 0, total_value: 0, order_index: 0 }]);
+    } catch (error) {
+      console.error(error);
+      setQuoteItems([{ description: '', quantity: 1, unit_value: 0, total_value: 0, order_index: 0 }]);
+    }
+  };
+
+  const saveQuoteItems = async () => {
+    if (!selectedProject) return;
+    setSavingQuote(true);
+    try {
+      const validItems = quoteItems.filter(item => item.description.trim());
+      await api.updateProjectServiceItems(selectedProject.id, validItems);
+
+      const totalValue = validItems.reduce((acc, curr) => acc + curr.total_value, 0);
+      if (totalValue !== selectedProject.total_value) {
+        await api.updateProject({ ...selectedProject, total_value: totalValue });
+      }
+
+      await fetchProjects(false);
+      setIsQuoteModalOpen(false);
+    } catch (error) {
+      console.error(error);
+      window.alert('Nao foi possivel salvar os itens do orcamento.');
+    } finally {
+      setSavingQuote(false);
+    }
+  };
+
   const handleAddProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newProject.title.trim() || !newProject.client_name.trim()) return;
@@ -353,7 +396,8 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
         end_date: undefined,
         total_value: toNumber(newProject.total_value),
         entry_value: 0,
-        address: newProject.address.trim()
+        address: newProject.address.trim(),
+        execution_deadline_days: toNumber(newProject.execution_deadline_days)
       });
 
       await fetchProjects(false);
@@ -409,6 +453,7 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
         amount: toNumber(genericCostForm.amount),
         date: genericCostForm.date,
         employee_id: genericCostForm.employee_id || undefined,
+        worker_name: genericCostForm.worker_name.trim() || undefined,
         vehicle_id: genericCostForm.vehicle_id || undefined,
         labor_daily_value: daily,
         labor_snack_value: snack,
@@ -652,6 +697,10 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
             <label className="block text-sm font-medium text-gray-700 mb-1">Endereco</label>
             <input required type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900" value={newProject.address} onChange={(e) => setNewProject((prev) => ({ ...prev, address: e.target.value }))} />
           </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Prazo de Execucao (dias)</label>
+            <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900" value={newProject.execution_deadline_days} onChange={(e) => setNewProject((prev) => ({ ...prev, execution_deadline_days: e.target.value }))} placeholder="Ex: 30" />
+          </div>
           <div className="pt-4 flex justify-end gap-3">
             <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium">Cancelar</button>
             <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">Salvar Obra</button>
@@ -696,11 +745,24 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
                     <label className="block text-sm font-medium text-gray-700 mb-1">Endereco</label>
                     <input className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" value={projectDraft.address} onChange={(e) => setProjectDraft({ ...projectDraft, address: e.target.value })} />
                   </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Prazo (dias)</label>
+                    <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" value={projectDraft.execution_deadline_days || ''} onChange={(e) => setProjectDraft({ ...projectDraft, execution_deadline_days: toNumber(e.target.value) })} />
+                  </div>
                 </div>
               </div>
 
               <div className="border border-gray-200 rounded-xl p-4 bg-white space-y-3">
-                <h4 className="font-semibold text-gray-900">Orcamento da Obra</h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="font-semibold text-gray-900">Orcamento da Obra</h4>
+                  <button
+                    type="button"
+                    onClick={() => openQuoteModal(projectDraft)}
+                    className="text-xs text-blue-600 hover:text-blue-700 font-bold underline"
+                  >
+                    Orcamento Detalhado
+                  </button>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Orcamento atual (R$)</label>
                   <input type="number" min={0} step="0.01" className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" value={projectDraft.total_value || ''} onChange={(e) => setProjectDraft({ ...projectDraft, total_value: Number(e.target.value || 0) })} />
@@ -876,11 +938,15 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div className="col-span-1 md:col-span-2">
-                        <label className="block text-sm font-medium text-blue-800 mb-1">Montador / Funcionario</label>
-                        <select className="w-full px-3 py-2 border border-blue-200 rounded-lg bg-white" value={genericCostForm.employee_id} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, employee_id: e.target.value }))}>
-                          <option value="">Selecione um funcionario (opcional)</option>
-                          {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.name} ({emp.role})</option>)}
-                        </select>
+                        <label className="block text-sm font-medium text-blue-800 mb-1">Nome do Montador</label>
+                        <input
+                          type="text"
+                          required
+                          className="w-full px-3 py-2 border border-blue-200 rounded-lg bg-white"
+                          placeholder="Ex: Gesiel Gesseiro"
+                          value={genericCostForm.worker_name}
+                          onChange={(e) => setGenericCostForm((prev) => ({ ...prev, worker_name: e.target.value }))}
+                        />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-blue-800 mb-1">Valor da Diaria (R$)</label>
@@ -895,10 +961,16 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
                         <input type="number" min="0" step="0.01" className="w-full px-3 py-2 border border-blue-200 rounded-lg bg-white" placeholder="0,00" value={genericCostForm.labor_transport_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, labor_transport_value: e.target.value }))} />
                       </div>
                       <div className="flex items-end">
-                        <button type="button" className="text-xs text-blue-700 underline font-medium hover:text-blue-900" onClick={() => {
-                          const total = toNumber(genericCostForm.labor_daily_value) + toNumber(genericCostForm.labor_snack_value) + toNumber(genericCostForm.labor_transport_value);
-                          if (total > 0) setGenericCostForm(prev => ({ ...prev, amount: total.toString() }));
-                        }}>Somar ao Valor Total</button>
+                        <button
+                          type="button"
+                          className="w-full px-3 py-2 bg-blue-100 text-blue-700 rounded-lg font-semibold hover:bg-blue-200 transition text-sm"
+                          onClick={() => {
+                            const total = toNumber(genericCostForm.labor_daily_value) + toNumber(genericCostForm.labor_snack_value) + toNumber(genericCostForm.labor_transport_value);
+                            if (total > 0) setGenericCostForm(prev => ({ ...prev, amount: total.toString() }));
+                          }}
+                        >
+                          Somar ao Valor Total
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -930,10 +1002,16 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
                         <input type="number" min="0" step="0.01" className="w-full px-3 py-2 border border-orange-200 rounded-lg bg-white" placeholder="0,00" value={genericCostForm.vehicle_maintenance_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, vehicle_maintenance_value: e.target.value }))} />
                       </div>
                       <div className="flex items-end">
-                        <button type="button" className="text-xs text-orange-700 underline font-medium hover:text-orange-900" onClick={() => {
-                          const total = toNumber(genericCostForm.vehicle_fuel_value) + toNumber(genericCostForm.vehicle_toll_value) + toNumber(genericCostForm.vehicle_maintenance_value);
-                          if (total > 0) setGenericCostForm(prev => ({ ...prev, amount: total.toString() }));
-                        }}>Somar ao Valor Total</button>
+                        <button
+                          type="button"
+                          className="w-full px-3 py-2 bg-orange-100 text-orange-700 rounded-lg font-semibold hover:bg-orange-200 transition text-sm"
+                          onClick={() => {
+                            const total = toNumber(genericCostForm.vehicle_fuel_value) + toNumber(genericCostForm.vehicle_toll_value) + toNumber(genericCostForm.vehicle_maintenance_value);
+                            if (total > 0) setGenericCostForm(prev => ({ ...prev, amount: total.toString() }));
+                          }}
+                        >
+                          Somar ao Valor Total
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -971,6 +1049,125 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
             </div>
           </form>
         ) : null}
+      </Modal>
+
+      <Modal isOpen={isQuoteModalOpen} onClose={() => setIsQuoteModalOpen(false)} title={`Orcamento Detalhado - ${selectedProject?.title}`} maxWidth="max-w-4xl">
+        {!selectedProject ? (
+          <div className="text-sm text-gray-500">Nenhuma obra selecionada.</div>
+        ) : (
+          <div className="space-y-6">
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center justify-between">
+              <div>
+                <h4 className="font-semibold text-blue-900">Total do Orcamento</h4>
+                <p className="text-2xl font-black text-blue-700">{formatMoney(quoteItems.reduce((acc, curr) => acc + curr.total_value, 0))}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  const text = `Orcamento: ${selectedProject.title}\nCliente: ${selectedProject.client_name}\n\nServicos:\n${quoteItems.map(item => `- ${item.description}: ${formatMoney(item.total_value)}`).join('\n')}\n\nTotal: ${formatMoney(quoteItems.reduce((acc, curr) => acc + curr.total_value, 0))}`;
+                  window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                }}
+                className="flex items-center gap-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-bold transition shadow-sm"
+              >
+                <Truck size={18} />
+                Compartilhar WhatsApp
+              </button>
+            </div>
+
+            <div className="max-h-[400px] overflow-y-auto border border-gray-200 rounded-xl">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="bg-gray-50 border-b border-gray-200 text-xs font-bold uppercase text-gray-500">
+                    <th className="px-4 py-3">Descricao do Servico</th>
+                    <th className="px-4 py-3 w-24">Qtd</th>
+                    <th className="px-4 py-3 w-32">Unit. (R$)</th>
+                    <th className="px-4 py-3 w-36">Total (R$)</th>
+                    <th className="px-4 py-3 w-12"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 italic">
+                  {quoteItems.map((item, index) => (
+                    <tr key={index}>
+                      <td className="px-4 py-2">
+                        <input
+                          type="text"
+                          className="w-full bg-transparent border-none focus:ring-0 p-0 text-gray-900"
+                          placeholder="Ex: Forro de Gesso liso"
+                          value={item.description}
+                          onChange={(e) => {
+                            const newItems = [...quoteItems];
+                            newItems[index].description = e.target.value;
+                            setQuoteItems(newItems);
+                          }}
+                        />
+                      </td>
+                      <td className="px-4 py-2">
+                        <input
+                          type="number"
+                          className="w-full bg-transparent border-none focus:ring-0 p-0 text-gray-900"
+                          value={item.quantity}
+                          onChange={(e) => {
+                            const newItems = [...quoteItems];
+                            newItems[index].quantity = Number(e.target.value);
+                            newItems[index].total_value = newItems[index].quantity * newItems[index].unit_value;
+                            setQuoteItems(newItems);
+                          }}
+                        />
+                      </td>
+                      <td className="px-4 py-2">
+                        <input
+                          type="number"
+                          step="0.01"
+                          className="w-full bg-transparent border-none focus:ring-0 p-0 text-gray-900"
+                          value={item.unit_value}
+                          onChange={(e) => {
+                            const newItems = [...quoteItems];
+                            newItems[index].unit_value = Number(e.target.value);
+                            newItems[index].total_value = newItems[index].quantity * newItems[index].unit_value;
+                            setQuoteItems(newItems);
+                          }}
+                        />
+                      </td>
+                      <td className="px-4 py-2 font-bold text-gray-900">
+                        {formatMoney(item.total_value)}
+                      </td>
+                      <td className="px-4 py-2">
+                        <button
+                          type="button"
+                          onClick={() => setQuoteItems(quoteItems.filter((_, i) => i !== index))}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Plus size={16} className="rotate-45" />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setQuoteItems([...quoteItems, { description: '', quantity: 1, unit_value: 0, total_value: 0, order_index: quoteItems.length }])}
+              className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-bold text-sm"
+            >
+              <Plus size={18} />
+              Adicionar Linha
+            </button>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-gray-100">
+              <button onClick={() => setIsQuoteModalOpen(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-bold">Cancelar</button>
+              <button
+                onClick={saveQuoteItems}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-70 inline-flex items-center"
+                disabled={savingQuote}
+              >
+                {savingQuote ? <Loader size={18} className="animate-spin mr-2" /> : <Save size={18} className="mr-2" />}
+                Salvar Orcamento
+              </button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

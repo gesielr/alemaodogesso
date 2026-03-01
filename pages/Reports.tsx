@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Download, TrendingUp, DollarSign, Package, Calendar, Eye, Loader2 } from 'lucide-react';
+import { FileText, Download, TrendingUp, DollarSign, Package, Calendar, Eye, Loader2, Users } from 'lucide-react';
 import { api } from '../services/api';
 import { Project, ProjectStatus, Transaction, TransactionType } from '../types';
 import { addStyledTable, createBasePdf, downloadBlob, sanitizePdfFilename } from '../utils/pdf';
@@ -65,6 +65,13 @@ const reports: ReportDefinition[] = [
     desc: 'Lista de obras fora do prazo.',
     icon: Calendar,
     color: 'text-red-600 bg-red-50'
+  },
+  {
+    id: 6,
+    title: 'Mao de Obra e Montadores',
+    desc: 'Pagamentos e despesas detalhadas por montador.',
+    icon: Users,
+    color: 'text-purple-600 bg-purple-50'
   }
 ];
 
@@ -338,26 +345,49 @@ const Reports: React.FC = () => {
       };
     }
 
+    if (report.id === 6) {
+      const projects = await api.getProjects();
+      let allLaborCosts: any[] = [];
+
+      // Busca custos de todos os projetos (isso pode ser otimizado no futuro)
+      for (const p of projects) {
+        const costs = await api.getProjectCosts(p.id);
+        const labor = costs.filter(c => c.type === 'LABOR' && inRange(c.date, period.start, period.end));
+        allLaborCosts = [...allLaborCosts, ...labor];
+      }
+
+      return buildLaborReport(allLaborCosts);
+    }
+
     const projects = await api.getProjects();
-    const todayIso = toIsoDate(new Date());
+    const today = new Date();
+
     const delayed = projects.filter((project) => {
-      const ended = project.end_date;
-      const isDelayed = Boolean(ended && ended < todayIso);
+      if (!project.approved_at || !project.execution_deadline_days) return false;
+
+      const approvedDate = new Date(project.approved_at);
+      const deadlineDate = new Date(approvedDate);
+      deadlineDate.setDate(approvedDate.getDate() + Number(project.execution_deadline_days));
+
+      const isDelayed = deadlineDate < today;
       const isClosed =
         project.status === ProjectStatus.CONCLUIDO || project.status === ProjectStatus.CANCELADO;
-      const withinSelectedPeriod = inRange(project.end_date, period.start, period.end);
-      return isDelayed && !isClosed && withinSelectedPeriod;
+
+      // Filtro por período (opcional, aqui estamos vendo todas as atrasadas não encerradas)
+      return isDelayed && !isClosed;
     });
 
     const rows = delayed.map((project) => {
-      const delayDays = project.end_date
-        ? Math.floor((new Date(todayIso).getTime() - new Date(project.end_date).getTime()) / (1000 * 60 * 60 * 24))
-        : 0;
+      const approvedDate = new Date(project.approved_at!);
+      const deadlineDate = new Date(approvedDate);
+      deadlineDate.setDate(approvedDate.getDate() + Number(project.execution_deadline_days));
+
+      const delayDays = Math.floor((today.getTime() - deadlineDate.getTime()) / (1000 * 60 * 60 * 24));
 
       return [
         project.title,
         project.client_name || '-',
-        formatDateLabel(project.end_date || ''),
+        formatDateLabel(toIsoDate(deadlineDate)),
         project.status,
         `${Math.max(0, delayDays)} dias`
       ];
@@ -365,8 +395,34 @@ const Reports: React.FC = () => {
 
     return {
       columns: ['Obra', 'Cliente', 'Prazo Final', 'Status', 'Atraso'],
-      rows: rows.length > 0 ? rows : [['Sem obras em atraso no periodo', '-', '-', '-', '-']],
+      rows: rows.length > 0 ? rows : [['Sem obras em atraso no momento', '-', '-', '-', '-']],
       summary: [`Obras em atraso: ${delayed.length}`]
+    };
+  };
+
+  const buildLaborReport = (costs: any[]): ReportDataset => {
+    const rows = costs.map((cost) => [
+      formatDateLabel(cost.date),
+      cost.worker_name || '-',
+      cost.description,
+      formatMoney(cost.amount),
+      formatMoney(cost.labor_daily_value || 0),
+      formatMoney((cost.labor_snack_value || 0) + (cost.labor_transport_value || 0))
+    ]);
+
+    const total = costs.reduce((acc, cost) => acc + (Number(cost.amount) || 0), 0);
+    const totalDaily = costs.reduce((acc, cost) => acc + (Number(cost.labor_daily_value) || 0), 0);
+    const totalExtras = costs.reduce((acc, cost) => acc + (Number(cost.labor_snack_value || 0) + Number(cost.labor_transport_value || 0)), 0);
+
+    return {
+      columns: ['Data', 'Montador', 'Servico', 'Total', 'Diaria', 'Extras'],
+      rows: rows.length > 0 ? rows : [['Sem dados no periodo', '-', '-', '-', '-', '-']],
+      summary: [
+        `Lancamentos de mao de obra: ${costs.length}`,
+        `Total Pago: ${formatMoney(total)}`,
+        `Total Diarias: ${formatMoney(totalDaily)}`,
+        `Total Extras (Lanche/Transporte): ${formatMoney(totalExtras)}`
+      ]
     };
   };
 

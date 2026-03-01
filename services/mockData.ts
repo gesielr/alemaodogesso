@@ -6,6 +6,7 @@
   Project,
   ProjectBudgetRevision,
   ProjectCost,
+  ProjectQuoteItem,
   ProjectStatus,
   Transaction,
   TransactionType,
@@ -163,39 +164,6 @@ let projectCosts: ProjectCost[] = [
     amount: 2800,
     date: '2023-10-05',
     notes: '2 ajudantes + 1 gesseiro'
-  },
-  {
-    id: 'pc-3',
-    project_id: '1',
-    type: 'VEHICLE',
-    description: 'Combustivel e frete',
-    amount: 1500,
-    date: '2023-10-06',
-    notes: 'Deslocamento de material'
-  },
-  {
-    id: 'pc-4',
-    project_id: '2',
-    type: 'MATERIAL',
-    description: 'Drywall e massa',
-    amount: 900,
-    date: '2023-09-15'
-  },
-  {
-    id: 'pc-5',
-    project_id: '2',
-    type: 'LABOR',
-    description: 'Mao de obra da divisoria',
-    amount: 700,
-    date: '2023-09-16'
-  },
-  {
-    id: 'pc-6',
-    project_id: '2',
-    type: 'VEHICLE',
-    description: 'Entrega de materiais',
-    amount: 200,
-    date: '2023-09-15'
   }
 ];
 
@@ -210,6 +178,8 @@ let projectBudgetRevisions: ProjectBudgetRevision[] = [
   }
 ];
 
+let projectServiceItems: ProjectQuoteItem[] = [];
+
 let transactions: Transaction[] = [
   {
     id: '1',
@@ -221,66 +191,11 @@ let transactions: Transaction[] = [
     date: '2023-09-20',
     status: 'Pago',
     project_id: '2'
-  },
-  {
-    id: '2',
-    description: 'Compra Material Gesso Forte',
-    amount: 1200,
-    paid_amount: 1200,
-    type: TransactionType.DESPESA,
-    category: 'Material',
-    date: '2023-10-02',
-    status: 'Pago'
-  },
-  {
-    id: '3',
-    description: 'Adiantamento Obra Horizon',
-    amount: 5000,
-    paid_amount: 5000,
-    type: TransactionType.RECEITA,
-    category: 'Recebimento Obra',
-    date: '2023-10-01',
-    status: 'Pago',
-    project_id: '1'
-  },
-  {
-    id: '4',
-    description: 'Pagamento Ajudante Diaria',
-    amount: 150,
-    paid_amount: 150,
-    type: TransactionType.DESPESA,
-    category: 'Mao de Obra',
-    date: '2023-10-03',
-    status: 'Pago',
-    project_id: '1'
-  },
-  {
-    id: '5',
-    description: 'Combustivel Hilux',
-    amount: 350,
-    paid_amount: 350,
-    type: TransactionType.DESPESA,
-    category: 'Combustivel',
-    date: '2023-10-05',
-    status: 'Pago'
-  },
-  {
-    id: '6',
-    description: 'Parcela 2 Obra Horizon',
-    amount: 5000,
-    paid_amount: 0,
-    type: TransactionType.RECEITA,
-    category: 'Recebimento Obra',
-    date: '2023-11-01',
-    status: 'Pendente',
-    project_id: '1'
   }
 ];
 
 let vehicles: Vehicle[] = [
-  { id: '1', model: 'Fiat Strada 1.4', plate: 'ABC-1234', current_km: 154000, last_maintenance: '2023-08-10', status: 'Ativo' },
-  { id: '2', model: 'VW Saveiro', plate: 'XYZ-9876', current_km: 98000, last_maintenance: '2023-09-20', status: 'Ativo' },
-  { id: '3', model: 'Caminhao Ford Cargo', plate: 'DEF-5678', current_km: 210000, last_maintenance: '2023-07-01', status: 'Manutencao' as Vehicle['status'] }
+  { id: '1', model: 'Fiat Strada 1.4', plate: 'ABC-1234', current_km: 154000, last_maintenance: '2023-08-10', status: 'Ativo' }
 ];
 
 const randomId = () => Math.random().toString(36).slice(2, 11);
@@ -424,6 +339,31 @@ export const api = {
     return newRevision;
   },
 
+  getProjectServiceItems: async (projectId: string) =>
+    new Promise<ProjectQuoteItem[]>((res) =>
+      setTimeout(
+        () =>
+          res(
+            projectServiceItems
+              .filter((item) => item.project_id === projectId)
+              .sort((a, b) => (a.order_index || 0) - (b.order_index || 0))
+          ),
+        150
+      )
+    ),
+
+  updateProjectServiceItems: async (projectId: string, items: Omit<ProjectQuoteItem, 'id' | 'project_id'>[]) => {
+    projectServiceItems = projectServiceItems.filter((item) => item.project_id !== projectId);
+    const newItems = items.map((item, index) => ({
+      ...item,
+      id: randomId(),
+      project_id: projectId,
+      order_index: item.order_index ?? index
+    }));
+    projectServiceItems = [...projectServiceItems, ...newItems];
+    return newItems;
+  },
+
   getInventory: async () =>
     new Promise<Material[]>((res) => setTimeout(() => res(inventory.map((item) => ({ ...item }))), 300)),
   addItem: async (item: Omit<Material, 'id'>) => {
@@ -507,6 +447,7 @@ export const api = {
   deleteVehicle: async (id: string) => {
     vehicles = vehicles.filter((vehicle) => vehicle.id !== id);
     return true;
-  }
-};
+  },
 
+  getEmployees: async () => new Promise((res) => setTimeout(() => res([]), 200))
+};
