@@ -404,7 +404,12 @@ export const api = {
     return true;
   },
 
-  getTransactions: async () => new Promise<Transaction[]>((res) => setTimeout(() => res([...transactions]), 300)),
+  getTransactions: async (startDate?: string, endDate?: string) => {
+    let filtered = [...transactions];
+    if (startDate) filtered = filtered.filter(tx => tx.date >= startDate);
+    if (endDate) filtered = filtered.filter(tx => tx.date <= endDate);
+    return new Promise<Transaction[]>((res) => setTimeout(() => res(filtered), 300));
+  },
   addTransaction: async (tx: Omit<Transaction, 'id'>) => {
     const newTx = {
       ...tx,

@@ -663,14 +663,19 @@ export const api = {
     ),
 
   // Transactions
-  getTransactions: async () =>
+  getTransactions: async (startDate?: string, endDate?: string) =>
     run(
       async () => {
         const client = requireSupabase();
-        const { data, error } = await client
+        let query = client
           .from('transactions')
           .select('*')
           .order('date', { ascending: false });
+
+        if (startDate) query = query.gte('date', startDate);
+        if (endDate) query = query.lte('date', endDate);
+
+        const { data, error } = await query;
 
         if (error) throw error;
         return (data ?? []).map(mapTransactionRow);

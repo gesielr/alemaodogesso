@@ -121,7 +121,7 @@ const Dashboard: React.FC<DashboardProps> = ({ onViewAllProjects }) => {
       const [statsData, projectsData, transactionsData] = await Promise.all([
         api.getDashboard(startDate, endDate),
         api.getProjects(),
-        api.getTransactions()
+        api.getTransactions(startDate, endDate)
       ]);
 
       setStats(statsData);
@@ -138,8 +138,8 @@ const Dashboard: React.FC<DashboardProps> = ({ onViewAllProjects }) => {
 
   useEffect(() => {
     if (!startDate || !endDate) return;
-    loadData();
-  }, [startDate, endDate]);
+    // O carregamento inicial agora é feito pelo initializeDefaultRange
+  }, []);
 
   const resetFilters = () => {
     setStartDate(defaultRange.start);
@@ -178,13 +178,12 @@ const Dashboard: React.FC<DashboardProps> = ({ onViewAllProjects }) => {
           </div>
           <div className="flex gap-2 w-full sm:w-auto">
             <button
-              onClick={resetFilters}
-              className="flex-1 sm:flex-none p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition"
-              title="Resetar Datas"
+              onClick={loadData}
+              className="flex-1 sm:flex-none bg-blue-600 text-white px-6 py-1.5 rounded-lg text-sm font-bold hover:bg-blue-700 transition shadow-sm"
             >
-              <RefreshCcw size={18} />
+              Buscar
             </button>
-            <button className="flex-1 sm:flex-none bg-blue-600 text-white px-4 py-1.5 rounded-lg text-sm font-bold hover:bg-blue-700 transition">
+            <button className="flex-1 sm:flex-none bg-gray-100 text-gray-600 px-3 py-1 rounded-md text-[11px] font-semibold hover:bg-gray-200 transition">
               Exportar
             </button>
           </div>
