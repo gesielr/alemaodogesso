@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ArrowUpCircle, ArrowDownCircle, Filter, Loader, CheckCircle, Clock, AlertCircle, Edit } from 'lucide-react';
 import { api } from '../services/api';
-import { Transaction, TransactionType } from '../types';
+import { Transaction, TransactionType, Project } from '../types';
 import Modal from '../components/Modal';
 
 interface FinanceProps {
@@ -11,6 +11,7 @@ interface FinanceProps {
 const Finance: React.FC<FinanceProps> = ({ filterType }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
   
   // Modal State for New/Edit Transaction
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -22,7 +23,8 @@ const Finance: React.FC<FinanceProps> = ({ filterType }) => {
       type: filterType || TransactionType.DESPESA,
       category: 'Outros',
       date: new Date().toISOString().split('T')[0],
-      status: 'Pago'
+      status: 'Pago',
+      project_id: ''
   });
 
   // Modal State for Settle (Baixa)
@@ -36,11 +38,21 @@ const Finance: React.FC<FinanceProps> = ({ filterType }) => {
 
   useEffect(() => {
     fetchTransactions();
+    fetchProjects();
     // Reset newTx default type if filterType changes
     if (filterType) {
       setNewTx(prev => ({ ...prev, type: filterType }));
     }
   }, [filterType]);
+
+  const fetchProjects = async () => {
+    try {
+      const data = await api.getProjects();
+      setProjects(data);
+    } catch (error) {
+      console.error('Erro ao buscar obras:', error);
+    }
+  };
 
   const fetchTransactions = async () => {
     setLoading(true);
@@ -61,7 +73,8 @@ const Finance: React.FC<FinanceProps> = ({ filterType }) => {
         type: filterType || TransactionType.DESPESA,
         category: 'Outros',
         date: new Date().toISOString().split('T')[0],
-        status: 'Pago'
+        status: 'Pago',
+        project_id: ''
     });
     setIsModalOpen(true);
   };
@@ -99,7 +112,8 @@ const Finance: React.FC<FinanceProps> = ({ filterType }) => {
         type: filterType || TransactionType.DESPESA,
         category: 'Outros',
         date: new Date().toISOString().split('T')[0],
-        status: 'Pago'
+        status: 'Pago',
+        project_id: ''
     });
   };
 
@@ -231,7 +245,14 @@ const Finance: React.FC<FinanceProps> = ({ filterType }) => {
               ) : displayedTransactions.map((t) => (
                 <tr key={t.id} className="hover:bg-gray-50 transition">
                   <td className="px-6 py-4">{formatDate(t.date)}</td>
-                  <td className="px-6 py-4 font-medium text-gray-900">{t.description}</td>
+                  <td className="px-6 py-4 font-medium text-gray-900">
+                    <div>{t.description}</div>
+                    {t.project_id && (
+                       <div className="text-xs text-blue-600 font-normal mt-0.5" title="Obra vinculada">
+                         Obra: {projects.find(p => p.id === t.project_id)?.title || 'Desconhecida'}
+                       </div>
+                    )}
+                  </td>
                   <td className="px-6 py-4">
                     <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">{t.category}</span>
                   </td>
@@ -345,7 +366,8 @@ const Finance: React.FC<FinanceProps> = ({ filterType }) => {
                 </select>
               </div>
           </div>
-          <div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Categoria</label>
                 <select 
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 bg-white text-gray-900"
@@ -353,6 +375,7 @@ const Finance: React.FC<FinanceProps> = ({ filterType }) => {
                     onChange={e => setNewTx({...newTx, category: e.target.value})}
                 >
                     <option value="Material">Material</option>
+                    <option value="Venda de Material">Venda de Material</option>
                     <option value="Mão de Obra">Mão de Obra</option>
                     <option value="Recebimento Obra">Recebimento Obra</option>
                     <option value="Combustível">Combustível</option>
@@ -362,6 +385,20 @@ const Finance: React.FC<FinanceProps> = ({ filterType }) => {
                     <option value="Outros">Outros</option>
                 </select>
             </div>
+            <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Obra Associada (Opcional)</label>
+                <select 
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 bg-white text-gray-900"
+                    value={newTx.project_id || ''}
+                    onChange={e => setNewTx({...newTx, project_id: e.target.value})}
+                >
+                    <option value="">Nenhuma Obra</option>
+                    {projects.map(p => (
+                        <option key={p.id} value={p.id}>{p.title} - {p.client_name}</option>
+                    ))}
+                </select>
+            </div>
+          </div>
           <div className="pt-4 flex justify-end gap-3">
              <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium">Cancelar</button>
              <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">

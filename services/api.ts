@@ -534,8 +534,8 @@ export const api = {
             category: tx.category,
             date: tx.date,
             status: tx.status,
-            project_id: tx.project_id ?? null,
-            vehicle_id: tx.vehicle_id ?? null
+            project_id: tx.project_id || null,
+            vehicle_id: tx.vehicle_id || null
           })
           .select('*')
           .single();
@@ -560,8 +560,8 @@ export const api = {
             category: updatedTx.category,
             date: updatedTx.date,
             status: updatedTx.status,
-            project_id: updatedTx.project_id ?? null,
-            vehicle_id: updatedTx.vehicle_id ?? null
+            project_id: updatedTx.project_id || null,
+            vehicle_id: updatedTx.vehicle_id || null
           })
           .eq('id', updatedTx.id)
           .select('*')
