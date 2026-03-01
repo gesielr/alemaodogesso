@@ -178,7 +178,7 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [isQuoteModalOpen, setIsQuoteModalOpen] = useState(false);
-  const [quoteItems, setQuoteItems] = useState<Omit<ProjectQuoteItem, 'id' | 'project_id'>[]>([]);
+  const [quoteItems, setQuoteItems] = useState<Omit<ProjectQuoteItem, 'id' | 'project_id'>[]>([{ description: '', quantity: 0, unit_value: 0, total_value: 0, order_index: 0 }]);
   const [savingQuote, setSavingQuote] = useState(false);
   const [quoteDocuments, setQuoteDocuments] = useState<ProjectQuoteDocument[]>([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
@@ -381,6 +381,18 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
     e.preventDefault();
     if (!newProject.title.trim() || !newProject.client_name.trim()) return;
 
+    // Verificar duplicidade: Cliente + Endereço
+    const isDuplicate = projects.some(p =>
+      p.client_name.trim().toLowerCase() === newProject.client_name.trim().toLowerCase() &&
+      p.address.trim().toLowerCase() === newProject.address.trim().toLowerCase()
+    );
+
+    if (isDuplicate) {
+      if (!window.confirm('Ja existe uma obra cadastrada para este cliente neste endereco. Deseja continuar mesmo assim?')) {
+        return;
+      }
+    }
+
     setLoading(true);
     try {
       const clientName = newProject.client_name.trim();
@@ -400,6 +412,9 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
         clientId = createdClient.id;
       }
 
+      const quoteItemsToSave = quoteItems.filter(item => item.description.trim());
+      const totalFromQuote = quoteItemsToSave.reduce((acc, curr) => acc + curr.total_value, 0);
+
       const createdProject = await api.addProject({
         title: newProject.title.trim(),
         client_id: clientId,
@@ -408,20 +423,20 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
         status: ProjectStatus.ORCAMENTO,
         start_date: todayDate(),
         end_date: undefined,
-        total_value: quoteItems.reduce((acc, curr) => acc + curr.total_value, 0) || toNumber(newProject.total_value),
+        total_value: totalFromQuote > 0 ? totalFromQuote : toNumber(newProject.total_value),
         entry_value: 0,
         address: newProject.address.trim(),
         execution_deadline_days: toNumber(newProject.execution_deadline_days)
       });
 
-      if (quoteItems.length > 0 && quoteItems[0].description.trim()) {
-        await api.updateProjectServiceItems(createdProject.id, quoteItems.filter(item => item.description.trim()));
+      if (quoteItemsToSave.length > 0) {
+        await api.updateProjectServiceItems(createdProject.id, quoteItemsToSave);
       }
 
       await fetchProjects(false);
       setIsModalOpen(false);
       setNewProject(emptyNewProject());
-      setQuoteItems([{ description: '', quantity: 1, unit_value: 0, total_value: 0, order_index: 0 }]);
+      setQuoteItems([{ description: '', quantity: 0, unit_value: 0, total_value: 0, order_index: 0 }]);
     } catch (error) {
       console.error(error);
       window.alert('Nao foi possivel cadastrar a obra.');
@@ -650,9 +665,37 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
               <div className="p-5 flex-1">
                 <div className="flex justify-between items-start mb-3">
                   <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusColor(project.status)}`}>{project.status}</span>
-                  <button type="button" onClick={() => void openTrackingModal(project)} className="text-gray-400 hover:text-gray-600" title="Acompanhar obra">
-                    <ArrowRight size={20} />
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => openQuoteModal(project)}
+                      className="text-blue-400 hover:text-blue-600 p-1 hover:bg-blue-50 rounded transition"
+                      title="Editar Orçamento"
+                    >
+                      <Package size={18} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (window.confirm(`Deseja realmente excluir a obra "${project.title}"? Esta acao nao pode ser desfeita.`)) {
+                          try {
+                            await api.deleteProject(project.id);
+                            await fetchProjects(false);
+                          } catch (error) {
+                            console.error(error);
+                            window.alert('Nao foi possivel excluir a obra.');
+                          }
+                        }
+                      }}
+                      className="text-red-400 hover:text-red-600 p-1 hover:bg-red-50 rounded transition"
+                      title="Excluir Obra"
+                    >
+                      <Plus size={18} className="rotate-45" />
+                    </button>
+                    <button type="button" onClick={() => void openTrackingModal(project)} className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-50 rounded transition" title="Acompanhar obra">
+                      <ArrowRight size={20} />
+                    </button>
+                  </div>
                 </div>
 
                 <h3 className="text-lg font-bold text-gray-800 mb-1 line-clamp-1">{project.title}</h3>
@@ -702,8 +745,19 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Valor Total (R$)</label>
-              <input required type="number" step="0.01" min="0" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900" value={newProject.total_value} onChange={(e) => setNewProject((prev) => ({ ...prev, total_value: e.target.value }))} />
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Valor Total (R$) {quoteItems.some(i => i.description.trim()) && <span className="text-xs text-blue-600 font-normal italic">(Calculado pelo orcamento)</span>}
+              </label>
+              <input
+                required
+                type="number"
+                step="0.01"
+                min="0"
+                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 ${quoteItems.some(i => i.description.trim()) ? 'bg-gray-50 opacity-80 cursor-not-allowed font-bold' : ''}`}
+                value={quoteItems.some(i => i.description.trim()) ? quoteItems.reduce((acc, curr) => acc + curr.total_value, 0) : newProject.total_value}
+                onChange={(e) => setNewProject((prev) => ({ ...prev, total_value: e.target.value }))}
+                readOnly={quoteItems.some(i => i.description.trim())}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
@@ -1161,11 +1215,13 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
                       <input
                         type="number"
                         className="w-full bg-transparent border-none focus:ring-0 p-0 text-gray-900"
-                        value={item.quantity}
+                        value={item.quantity === 0 ? '' : item.quantity}
+                        placeholder="0"
                         onChange={(e) => {
+                          const val = e.target.value === '' ? 0 : Number(e.target.value);
                           const newItems = [...quoteItems];
-                          newItems[index].quantity = Number(e.target.value);
-                          newItems[index].total_value = newItems[index].quantity * newItems[index].unit_value;
+                          newItems[index].quantity = val;
+                          newItems[index].total_value = val * newItems[index].unit_value;
                           setQuoteItems(newItems);
                         }}
                       />
@@ -1187,13 +1243,15 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
                       <input
                         type="number"
                         step="0.01"
+                        placeholder="0,00"
                         className="w-full bg-transparent border-none focus:ring-0 p-0 text-gray-900 font-bold"
-                        value={item.total_value}
+                        value={item.total_value === 0 ? '' : item.total_value}
                         onChange={(e) => {
+                          const val = e.target.value === '' ? 0 : Number(e.target.value);
                           const newItems = [...quoteItems];
-                          newItems[index].total_value = Number(e.target.value);
+                          newItems[index].total_value = val;
                           if (newItems[index].quantity > 0) {
-                            newItems[index].unit_value = newItems[index].total_value / newItems[index].quantity;
+                            newItems[index].unit_value = val / newItems[index].quantity;
                           }
                           setQuoteItems(newItems);
                         }}

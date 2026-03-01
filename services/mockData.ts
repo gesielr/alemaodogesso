@@ -280,6 +280,13 @@ export const api = {
     return projects.find((project) => project.id === updatedProject.id) || updatedProject;
   },
 
+  deleteProject: async (id: string) => {
+    projects = projects.filter((project) => project.id !== id);
+    projectCosts = projectCosts.filter((cost) => cost.project_id !== id);
+    projectServiceItems = projectServiceItems.filter((item) => item.project_id !== id);
+    return true;
+  },
+
   getProjectCosts: async (projectId: string) =>
     new Promise<ProjectCost[]>((res) =>
       setTimeout(

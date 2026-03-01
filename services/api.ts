@@ -311,6 +311,17 @@ export const api = {
       () => mockApi.updateProject(updatedProject)
     ),
 
+  deleteProject: async (id: string) =>
+    run(
+      async () => {
+        const client = requireSupabase();
+        const { error } = await client.from('projects').delete().eq('id', id);
+        if (error) throw error;
+        return true;
+      },
+      () => mockApi.deleteProject(id)
+    ),
+
   getProjectCosts: async (projectId: string) =>
     run(
       async () => {
@@ -533,9 +544,10 @@ export const api = {
             items.map((item, index) => ({
               project_id: projectId,
               description: item.description,
+              amount: toNumber(item.total_value), // Fallback para coluna antiga
+              total_value: toNumber(item.total_value), // Coluna nova
               quantity: toNumber(item.quantity, 1),
               unit_value: toNumber(item.unit_value),
-              total_value: toNumber(item.total_value),
               order_index: item.order_index ?? index
             }))
           )
