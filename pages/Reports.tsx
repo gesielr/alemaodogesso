@@ -502,11 +502,13 @@ const Reports: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
+    <div className="space-y-8 animate-in fade-in duration-700">
+      <div className="flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Relatorios Gerenciais</h1>
-          <p className="text-gray-500 text-sm">Visualize na tela e baixe em PDF com layout profissional.</p>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Inteligência de Dados</h1>
+          <p className="text-slate-500 mt-1 font-medium italic">
+            Geração de relatórios gerenciais e análise de performance operacional.
+          </p>
         </div>
       </div>
 
@@ -521,62 +523,64 @@ const Reports: React.FC = () => {
           const isPdfLoading = runningReport?.reportId === report.id && runningReport.action === 'pdf';
 
           return (
-            <div key={report.id} className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition">
-              <div className={`w-12 h-12 rounded-lg flex items-center justify-center mb-4 ${report.color}`}>
-                <Icon size={24} />
+            <div key={report.id} className="premium-card p-6 flex flex-col group">
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-5 transition-transform group-hover:scale-110 duration-300 ${report.color} shadow-sm`}>
+                <Icon size={28} />
               </div>
-              <h3 className="text-lg font-bold text-gray-800 mb-2">{report.title}</h3>
-              <p className="text-sm text-gray-500 mb-6 h-10">{report.desc}</p>
+              <h3 className="text-xl font-bold text-slate-900 mb-2 tracking-tight group-hover:text-blue-600 transition-colors uppercase">{report.title}</h3>
+              <p className="text-xs text-slate-400 font-medium mb-6 flex-1 leading-relaxed italic">{report.desc}</p>
 
-              <div className="space-y-3">
-                <select
-                  className="w-full text-sm border-gray-300 rounded-md border p-2 bg-gray-50"
-                  value={selectedPeriod}
-                  onChange={(e) => handlePeriodChange(report.id, e.target.value as ReportPeriodPreset)}
-                >
-                  {periodOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
+              <div className="space-y-4">
+                <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 px-1">Período de Análise</label>
+                  <select
+                    className="w-full text-xs font-bold border-slate-200 rounded-xl border p-2.5 bg-white text-slate-800 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none"
+                    value={selectedPeriod}
+                    onChange={(e) => handlePeriodChange(report.id, e.target.value as ReportPeriodPreset)}
+                  >
+                    {periodOptions.map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
 
-                {selectedPeriod === 'CUSTOM' && (
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="date"
-                      className="w-full text-sm border-gray-300 rounded-md border p-2 bg-white text-gray-900"
-                      value={customRange.start}
-                      onChange={(e) => handleCustomDateChange(report.id, 'start', e.target.value)}
-                    />
-                    <input
-                      type="date"
-                      className="w-full text-sm border-gray-300 rounded-md border p-2 bg-white text-gray-900"
-                      value={customRange.end}
-                      onChange={(e) => handleCustomDateChange(report.id, 'end', e.target.value)}
-                    />
-                  </div>
-                )}
-
-                {periodError && <p className="text-xs text-red-600">{periodError}</p>}
+                  {selectedPeriod === 'CUSTOM' && (
+                    <div className="grid grid-cols-2 gap-2 mt-3 animate-in slide-in-from-top-2 duration-300">
+                      <input
+                        type="date"
+                        className="w-full text-[11px] font-bold border-slate-200 rounded-xl border p-2 bg-white text-slate-700 outline-none"
+                        value={customRange.start}
+                        onChange={(e) => handleCustomDateChange(report.id, 'start', e.target.value)}
+                      />
+                      <input
+                        type="date"
+                        className="w-full text-[11px] font-bold border-slate-200 rounded-xl border p-2 bg-white text-slate-700 outline-none"
+                        value={customRange.end}
+                        onChange={(e) => handleCustomDateChange(report.id, 'end', e.target.value)}
+                      />
+                    </div>
+                  )}
+                  {periodError && <p className="text-[10px] font-bold text-rose-500 mt-2 px-1">{periodError}</p>}
+                </div>
               </div>
 
-              <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="mt-6 flex flex-col gap-2">
                 <button
                   onClick={() => handleRun(report, 'preview')}
                   disabled={Boolean(runningReport)}
-                  className="flex items-center justify-center border border-gray-300 hover:bg-gray-50 text-gray-700 font-medium py-2 rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center bg-white border border-slate-200 hover:border-blue-300 hover:text-blue-600 text-slate-600 font-black text-[10px] uppercase tracking-widest py-3.5 rounded-2xl transition-all active:scale-95 disabled:opacity-50"
                 >
                   {isPreviewLoading ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Eye size={16} className="mr-2" />}
-                  Visualizar
+                  Visualizar Dados
                 </button>
                 <button
                   onClick={() => handleRun(report, 'pdf')}
                   disabled={Boolean(runningReport)}
-                  className="flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 rounded-lg transition disabled:opacity-60 disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center bg-slate-900 hover:bg-black text-white font-black text-[10px] uppercase tracking-widest py-3.5 rounded-2xl shadow-xl shadow-slate-900/10 transition-all active:scale-95 hover:-translate-y-0.5 disabled:opacity-50"
                 >
                   {isPdfLoading ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Download size={16} className="mr-2" />}
-                  Baixar PDF
+                  Exportar PDF
                 </button>
               </div>
             </div>
@@ -585,31 +589,38 @@ const Reports: React.FC = () => {
       </div>
 
       {preview && (
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+        <div className="bg-white rounded-[32px] shadow-2xl shadow-slate-200/50 border border-slate-100 overflow-hidden animate-in slide-up duration-700">
+          <div className="px-8 py-6 border-b border-slate-50 flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-slate-50/30 backdrop-blur-sm">
             <div>
-              <h3 className="text-lg font-bold text-gray-900">{preview.title}</h3>
-              <p className="text-sm text-gray-500">Periodo: {preview.periodLabel}</p>
+              <div className="flex items-center gap-3">
+                <h3 className="text-xl font-black text-slate-900 tracking-tight uppercase">{preview.title}</h3>
+                <span className="text-[10px] px-3 py-1 rounded-full bg-blue-600 text-white font-black uppercase tracking-widest">
+                  Preview Live
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 font-bold mt-1 uppercase tracking-tighter italic">Competência: {preview.periodLabel}</p>
             </div>
-            <span className="text-xs px-2 py-1 rounded-full bg-blue-100 text-blue-700 font-medium">
-              Visualizacao em tela
-            </span>
+            {lastGeneratedReport && (
+                <div className="flex items-center text-[10px] font-black uppercase tracking-widest text-emerald-600 bg-emerald-50 px-3 py-1 scale-90 md:scale-100 rounded-full border border-emerald-100 shadow-sm animate-in fade-in">
+                  ✓ Documento Consolidado
+                </div>
+            )}
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm text-left text-gray-700">
-              <thead className="bg-white border-b border-gray-200 text-xs uppercase text-gray-500">
+          <div className="overflow-x-auto custom-scrollbar">
+            <table className="w-full text-left">
+              <thead className="bg-slate-50/50 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400 border-b border-slate-100">
                 <tr>
                   {preview.columns.map((column) => (
-                    <th key={column} className="px-4 py-3">{column}</th>
+                    <th key={column} className="px-8 py-5">{column}</th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-slate-50">
                 {preview.rows.slice(0, 25).map((row, rowIndex) => (
-                  <tr key={`preview-row-${rowIndex}`} className="hover:bg-gray-50">
+                  <tr key={`preview-row-${rowIndex}`} className="hover:bg-slate-50/50 transition-all group">
                     {row.map((cell, cellIndex) => (
-                      <td key={`preview-cell-${rowIndex}-${cellIndex}`} className="px-4 py-3">
+                      <td key={`preview-cell-${rowIndex}-${cellIndex}`} className="px-8 py-5 text-sm font-bold text-slate-700 group-hover:text-blue-600">
                         {cell}
                       </td>
                     ))}
@@ -619,9 +630,12 @@ const Reports: React.FC = () => {
             </table>
           </div>
 
-          <div className="px-6 py-4 border-t border-gray-200 bg-gray-50 space-y-1">
+          <div className="px-8 py-10 bg-slate-900 text-white flex flex-wrap gap-x-12 gap-y-6">
             {preview.summary.map((line, index) => (
-              <p key={`summary-${index}`} className="text-sm text-gray-700">{line}</p>
+               <div key={`summary-${index}`} className="flex flex-col">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{line.split(':')[0]}</span>
+                  <span className="text-lg font-black tracking-tight">{line.split(':')[1] || line}</span>
+               </div>
             ))}
           </div>
         </div>

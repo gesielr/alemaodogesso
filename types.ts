@@ -65,8 +65,17 @@ export interface Project {
   total_value: number; // Valor cobrado do cliente
   entry_value?: number;
   address: string;
-  execution_deadline_days?: number;
-  approved_at?: string;
+  execution_deadline_days?: number,
+  approved_at?: string,
+  
+  // Management & Costs
+  service?: string,
+  execution_time?: string,
+  material_cost?: number,
+  vehicle_cost?: number,
+  labor_cost?: number,
+  tax_cost?: number,
+  invoice_sent?: boolean,
 
   // Computed/Relation fields for frontend
   client_name?: string;

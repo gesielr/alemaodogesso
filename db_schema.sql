@@ -1,48 +1,8 @@
--- ===========================================================
--- GessoManager Pro - Supabase Schema
--- ===========================================================
--- This script creates all core tables used by the system:
--- clients, projects, inventory, finance, vehicles, employees,
--- costs, reports and supporting relations.
---
--- Safe to run on an empty database.
--- ===========================================================
 
-create extension if not exists pgcrypto with schema public;
 
--- -----------------------------------------------------------
--- ENUM TYPES
--- -----------------------------------------------------------
-do $$
-begin
-  if not exists (select 1 from pg_type where typname = 'project_status') then
-    create type public.project_status as enum (
-      'Orçamento',
-      'Aprovado',
-      'Em Andamento',
-      'Concluído',
-      'Cancelado'
-    );
-  end if;
 
-  if not exists (select 1 from pg_type where typname = 'transaction_type') then
-    create type public.transaction_type as enum ('Receita', 'Despesa');
-  end if;
 
-  if not exists (select 1 from pg_type where typname = 'transaction_status') then
-    create type public.transaction_status as enum ('Pendente', 'Parcial', 'Pago');
-  end if;
 
-  if not exists (select 1 from pg_type where typname = 'payment_method') then
-    create type public.payment_method as enum (
-      'Pix',
-      'Boleto',
-      'Crédito',
-      'Débito',
-      'Dinheiro',
-      'Transferência'
-    );
-  end if;
 
   if not exists (select 1 from pg_type where typname = 'vehicle_status') then
     create type public.vehicle_status as enum ('Ativo', 'Manutenção');

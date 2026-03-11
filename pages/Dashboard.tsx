@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   DollarSign,
   TrendingUp,
@@ -8,7 +8,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Calendar,
-  RefreshCcw
+  RefreshCcw,
+  Users
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { api } from '../services/api';
@@ -149,184 +150,258 @@ const Dashboard: React.FC<DashboardProps> = ({ onViewAllProjects }) => {
   const formatBRL = (val: number) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+    <div className="space-y-8">
+      <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">Visao Geral</h1>
-          <p className="text-gray-500 text-sm">Resumo financeiro e operacional estrategico</p>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Bem-vindo, Alemão!</h1>
+          <p className="text-slate-500 mt-1 font-medium italic">Seu resumo operacional e financeiro de hoje.</p>
         </div>
 
-        <div className="bg-white p-2 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row items-center gap-3">
-          <div className="flex items-center text-gray-400 px-2">
-            <Calendar size={18} className="mr-2" />
-            <span className="text-xs font-bold uppercase tracking-wider">Filtrar Periodo</span>
+        <div className="bg-white/80 backdrop-blur-md p-2 rounded-2xl border border-slate-200 shadow-xl shadow-slate-200/40 flex flex-col sm:flex-row items-center gap-4">
+          <div className="flex items-center text-slate-400 px-3 py-1 bg-slate-50 rounded-xl">
+            <Calendar size={16} className="mr-2 text-blue-500" />
+            <span className="text-[10px] font-bold uppercase tracking-widest">Período</span>
           </div>
           <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
             <input
               type="date"
-              className="w-full sm:w-auto px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
+              className="px-4 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               value={startDate}
               onChange={(e) => setStartDate(e.target.value)}
             />
-            <span className="text-gray-400 hidden sm:inline">ate</span>
+            <span className="text-slate-300 font-bold">→</span>
             <input
               type="date"
-              className="w-full sm:w-auto px-3 py-1.5 border border-gray-200 rounded-lg text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 outline-none"
+              className="px-4 py-2 border border-slate-200 rounded-xl text-xs bg-white text-slate-900 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
               value={endDate}
               onChange={(e) => setEndDate(e.target.value)}
             />
           </div>
-          <div className="flex gap-2 w-full sm:w-auto">
+          <div className="flex gap-2 w-full sm:w-auto ml-2">
             <button
               onClick={loadData}
               className="flex-1 sm:flex-none bg-blue-600 text-white px-6 py-1.5 rounded-lg text-sm font-bold hover:bg-blue-700 transition shadow-sm"
             >
               Buscar
             </button>
-            <button className="flex-1 sm:flex-none bg-gray-100 text-gray-600 px-3 py-1 rounded-md text-[11px] font-semibold hover:bg-gray-200 transition">
-              Exportar
+            <button
+              onClick={resetFilters}
+              className="p-2.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+              title="Resetar Datas"
+            >
+              <RefreshCcw size={16} />
+            </button>
+            <button className="flex-1 sm:flex-none bg-slate-900 text-white px-5 py-2.5 rounded-xl text-xs font-bold hover:bg-black transition-all shadow-lg shadow-slate-900/20 active:scale-95">
+              Refinar Busca
             </button>
           </div>
         </div>
       </div>
 
       {loading && !stats ? (
-        <div className="flex items-center justify-center py-20 text-gray-400">
-          <RefreshCcw className="animate-spin mr-2" /> Carregando estatisticas...
+        <div className="flex items-center justify-center py-32 text-slate-400">
+          <RefreshCcw className="animate-spin mr-3 text-blue-500" /> 
+          <span className="font-semibold tracking-wide">Sincronizando dados...</span>
         </div>
       ) : stats ? (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="premium-card p-6 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-green-500/5 rounded-full blur-2xl group-hover:bg-green-500/10 transition-colors" />
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Receita no Periodo</p>
-                  <h3 className="text-2xl font-bold text-gray-800 mt-1">{formatBRL(stats.revenue)}</h3>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Receita</p>
+                  <h3 className="text-2xl font-extrabold text-slate-900 mt-2 tracking-tight">{formatBRL(stats.revenue)}</h3>
                 </div>
-                <div className="p-2 bg-green-50 text-green-600 rounded-lg">
-                  <TrendingUp size={20} />
+                <div className="p-3 bg-green-500/10 text-green-600 rounded-xl">
+                  <TrendingUp size={22} />
                 </div>
               </div>
-              <div className="mt-4 flex items-center text-sm text-green-600">
-                <ArrowUpRight size={16} className="mr-1" />
-                <span className="font-medium">Atualizado</span>
+              <div className="mt-6 flex items-center justify-between">
+                <div className="flex items-center text-xs text-green-600 font-bold bg-green-50 px-2 py-1 rounded-lg">
+                  <ArrowUpRight size={14} className="mr-1" />
+                  <span>Crescimento</span>
+                </div>
+                <span className="text-[10px] text-slate-300 font-medium">No período</span>
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="premium-card p-6 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-red-500/5 rounded-full blur-2xl group-hover:bg-red-500/10 transition-colors" />
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Despesas no Periodo</p>
-                  <h3 className="text-2xl font-bold text-gray-800 mt-1">{formatBRL(stats.expenses)}</h3>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Despesas</p>
+                  <h3 className="text-2xl font-extrabold text-slate-900 mt-2 tracking-tight">{formatBRL(stats.expenses)}</h3>
                 </div>
-                <div className="p-2 bg-red-50 text-red-600 rounded-lg">
-                  <TrendingDown size={20} />
+                <div className="p-3 bg-red-500/10 text-red-600 rounded-xl">
+                  <TrendingDown size={22} />
                 </div>
               </div>
-              <div className="mt-4 flex items-center text-sm text-red-600">
-                <ArrowDownRight size={16} className="mr-1" />
-                <span className="font-medium">Consolidado</span>
+              <div className="mt-6 flex items-center justify-between">
+                <div className="flex items-center text-xs text-red-600 font-bold bg-red-50 px-2 py-1 rounded-lg">
+                  <ArrowDownRight size={14} className="mr-1" />
+                  <span>Operacional</span>
+                </div>
+                <span className="text-[10px] text-slate-300 font-medium">{Math.round((stats.expenses / (stats.revenue || 1)) * 100)}% da receita</span>
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="premium-card p-6 relative overflow-hidden group bg-slate-900">
+              <div className="absolute top-0 right-0 -mt-4 -mr-4 w-32 h-32 bg-blue-500/10 rounded-full blur-3xl opacity-50" />
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Resultado Liquido</p>
-                  <h3 className={`text-2xl font-bold mt-1 ${stats.net_profit >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-2">Lucro Líquido</p>
+                  <h3 className={`text-2xl font-extrabold tracking-tight ${stats.net_profit >= 0 ? 'text-white' : 'text-red-400'}`}>
                     {formatBRL(stats.net_profit)}
                   </h3>
                 </div>
-                <div className="p-2 bg-blue-50 text-blue-600 rounded-lg">
-                  <DollarSign size={20} />
+                <div className="p-3 bg-blue-500 text-white rounded-xl shadow-lg shadow-blue-500/40">
+                  <DollarSign size={22} />
                 </div>
               </div>
-              <div className="mt-4 flex items-center text-sm text-gray-500">
-                <span className="text-gray-400">Margem: </span>
-                <span className="font-medium ml-1 text-gray-700">{stats.revenue > 0 ? Math.round((stats.net_profit / stats.revenue) * 100) : 0}%</span>
+              <div className="mt-6 flex items-center">
+                <div className="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-blue-500 transition-all duration-1000" 
+                    style={{ width: `${Math.max(0, Math.min(100, (stats.net_profit / (stats.revenue || 1)) * 100))}%` }} 
+                  />
+                </div>
+                <span className="ml-3 text-xs font-bold text-blue-400">{stats.revenue > 0 ? Math.round((stats.net_profit / stats.revenue) * 100) : 0}%</span>
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+            <div className="premium-card p-6 relative overflow-hidden group">
+              <div className="absolute top-0 right-0 -mt-4 -mr-4 w-24 h-24 bg-orange-500/5 rounded-full blur-2xl group-hover:bg-orange-500/10 transition-colors" />
               <div className="flex justify-between items-start">
                 <div>
-                  <p className="text-sm font-medium text-gray-500">Obras Ativas</p>
-                  <h3 className="text-2xl font-bold text-gray-800 mt-1">{stats.active_projects}</h3>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest">Operação</p>
+                  <h3 className="text-2xl font-extrabold text-slate-900 mt-2 tracking-tight">{stats.active_projects} Obras</h3>
                 </div>
-                <div className="p-2 bg-orange-50 text-orange-600 rounded-lg">
-                  <HardHat size={20} />
+                <div className="p-3 bg-orange-500/10 text-orange-600 rounded-xl">
+                  <HardHat size={22} />
                 </div>
               </div>
-              <div className="mt-4 flex items-center text-sm text-orange-600">
-                {stats.low_stock_items > 0 && (
-                  <>
-                    <AlertTriangle size={16} className="mr-1" />
-                    <span className="font-medium">{stats.low_stock_items} Itens</span>
-                    <span className="text-gray-400 ml-2">baixo estoque</span>
-                  </>
+              <div className="mt-6">
+                {stats.low_stock_items > 0 ? (
+                  <div className="flex items-center gap-2 text-xs text-orange-600 font-bold bg-orange-50 px-3 py-1.5 rounded-lg border border-orange-100">
+                    <AlertTriangle size={14} className="animate-pulse" />
+                    <span>{stats.low_stock_items} alertas de estoque</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-xs text-slate-400 font-bold bg-slate-50 px-3 py-1.5 rounded-lg">
+                    <div className="w-1.5 h-1.5 bg-green-500 rounded-full" />
+                    <span>Estoque Regular</span>
+                  </div>
                 )}
-                {stats.low_stock_items === 0 && <span className="text-gray-400">Estoque OK</span>}
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center justify-between">
-                <span>Fluxo de Caixa Comparativo</span>
-                <span className="text-xs font-normal text-gray-400 uppercase tracking-tighter">Comparacao com meses anteriores</span>
-              </h3>
-              <div className="h-80">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 premium-card p-8">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Performance Financeira</h3>
+                  <p className="text-sm text-slate-500 mt-0.5">Fluxo de caixa comparativo (6 meses)</p>
+                </div>
+                <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-widest">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-blue-500 rounded-sm" />
+                    <span className="text-slate-600">Receita</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 bg-red-500 rounded-sm" />
+                    <span className="text-slate-600">Despesa</span>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="h-[340px] w-full">
                 {chartData.length === 0 ? (
-                  <div className="h-full flex items-center justify-center text-sm text-gray-400">Nenhuma movimentacao encontrada.</div>
+                  <div className="h-full flex flex-col items-center justify-center text-slate-400 space-y-2">
+                    <RefreshCcw size={20} className="opacity-20" />
+                    <p className="text-sm font-medium">Aguardando movimentações...</p>
+                  </div>
                 ) : (
                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e5e7eb" />
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} dy={10} />
-                      <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6b7280', fontSize: 12 }} tickFormatter={(value) => `R$${value / 1000}k`} />
-                      <Tooltip
-                        cursor={{ fill: '#f3f4f6' }}
-                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
+                    <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="4 4" vertical={false} stroke="#f1f5f9" />
+                      <XAxis 
+                        dataKey="name" 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} 
+                        dy={15} 
                       />
-                      <Bar dataKey="receita" name="Receita" fill="#2563eb" radius={[4, 4, 0, 0]} barSize={40} />
-                      <Bar dataKey="despesa" name="Despesa" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={40} />
+                      <YAxis 
+                        axisLine={false} 
+                        tickLine={false} 
+                        tick={{ fill: '#94a3b8', fontSize: 11, fontWeight: 600 }} 
+                        tickFormatter={(value) => `R$${value / 1000}k`} 
+                      />
+                      <Tooltip
+                        cursor={{ fill: '#f8fafc' }}
+                        contentStyle={{ 
+                          borderRadius: '16px', 
+                          border: '1px solid #e2e8f0', 
+                          boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1)',
+                          padding: '12px'
+                        }}
+                        itemStyle={{ fontWeight: 700, fontSize: '13px' }}
+                        labelStyle={{ color: '#64748b', fontWeight: 600, marginBottom: '8px', fontSize: '11px', textTransform: 'uppercase' }}
+                      />
+                      <Bar dataKey="receita" name="Receita" fill="#3b82f6" radius={[6, 6, 0, 0]} barSize={32} />
+                      <Bar dataKey="despesa" name="Despesa" fill="#ef4444" radius={[6, 6, 0, 0]} barSize={32} />
                     </BarChart>
                   </ResponsiveContainer>
                 )}
               </div>
             </div>
 
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-              <h3 className="text-lg font-bold text-gray-800 mb-4">Obras Recentes</h3>
-              <div className="space-y-4">
-                {recentProjects.map((project) => (
-                  <div key={project.id} className="flex items-center justify-between p-3 hover:bg-gray-50 rounded-lg transition border border-transparent hover:border-gray-200">
-                    <div>
-                      <h4 className="font-semibold text-gray-800 text-sm">{project.title}</h4>
-                      <p className="text-xs text-gray-500">{project.client_name}</p>
-                    </div>
-                    <div className="text-right">
-                      <span
-                        className={`inline-block px-2 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider
+            <div className="premium-card p-8 flex flex-col">
+              <div className="flex items-center justify-between mb-8">
+                <h3 className="text-xl font-bold text-slate-900">Obras Recentes</h3>
+                <span className="p-2 bg-slate-100 text-slate-500 rounded-lg">
+                  <HardHat size={18} />
+                </span>
+              </div>
+              
+              <div className="space-y-3 flex-1">
+                {recentProjects.length === 0 ? (
+                  <div className="h-full flex flex-col items-center justify-center text-slate-400 py-10">
+                     <p className="text-sm font-medium">Nenhuma obra ativa.</p>
+                  </div>
+                ) : recentProjects.map((project) => (
+                  <div key={project.id} className="group p-4 rounded-2xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50/30 transition-all duration-300">
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-1">
+                        <h4 className="font-bold text-slate-900 text-sm group-hover:text-blue-700 transition-colors uppercase tracking-tight">{project.title}</h4>
+                        <div className="flex items-center text-xs text-slate-500 font-medium">
+                          <Users size={12} className="mr-1.5 opacity-60" />
+                          {project.client_name}
+                        </div>
+                      </div>
+                      <div
+                        className={`px-3 py-1.5 rounded-xl text-[10px] font-extrabold uppercase tracking-tighter shadow-sm
                         ${project.status === ProjectStatus.EM_ANDAMENTO
-                            ? 'bg-blue-100 text-blue-700'
+                            ? 'bg-blue-500 text-white shadow-blue-500/20'
                             : project.status === ProjectStatus.CONCLUIDO
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-gray-100 text-gray-700'}`}
+                              ? 'bg-emerald-500 text-white shadow-emerald-500/20'
+                              : 'bg-slate-100 text-slate-600'}`}
                       >
                         {project.status}
-                      </span>
+                      </div>
                     </div>
                   </div>
                 ))}
-                <button
-                  onClick={onViewAllProjects}
-                  className="w-full mt-2 text-sm text-blue-600 font-bold hover:text-blue-800 text-center py-2 bg-blue-50 rounded-lg transition"
-                >
-                  Ver todas as obras
-                </button>
               </div>
+              
+              <button
+                onClick={onViewAllProjects}
+                className="w-full mt-6 bg-slate-50 text-slate-900 border border-slate-200 p-4 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-white hover:shadow-xl hover:shadow-slate-200 transition-all duration-300 active:scale-95"
+              >
+                Gerenciar Todas as Obras
+              </button>
             </div>
           </div>
         </>

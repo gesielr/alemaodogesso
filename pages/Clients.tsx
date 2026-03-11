@@ -133,106 +133,106 @@ const Clients: React.FC<ClientsProps> = ({ onViewProjects }) => {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+    <div className="space-y-8 animate-in fade-in duration-700">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Meus Clientes</h1>
-          <p className="text-gray-500 text-sm">Gerencie sua base de contatos e informações cadastrais.</p>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Carteira de Clientes</h1>
+          <p className="text-slate-500 mt-1 font-medium italic">Gestão de parcerias e histórico de relacionamentos comerciais.</p>
         </div>
         <button 
             onClick={handleOpenAddModal}
-            className="flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-bold transition shadow-sm w-full sm:w-auto justify-center"
+            className="bg-slate-900 text-white px-8 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-black shadow-xl shadow-slate-900/20 transition-all hover:-translate-y-1 active:translate-y-0 flex items-center justify-center w-full sm:w-auto"
         >
-          <Plus size={18} className="mr-2" />
-          Novo Cliente
+          <Plus size={16} className="mr-2" />
+          Novo Parceiro
         </button>
       </div>
 
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200">
-        <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+      <div className="bg-white p-6 rounded-[24px] shadow-2xl shadow-slate-200/40 border border-slate-100 flex flex-col md:flex-row gap-4 items-center">
+        <div className="relative flex-1 group w-full">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
             <input 
               type="text" 
-              placeholder="Buscar por nome, email ou CPF/CNPJ..." 
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none bg-white text-gray-900"
+              placeholder="Pesquisar por nome, identificação ou documento..." 
+              className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-medium focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
         </div>
+        <div className="flex items-center bg-blue-600 text-white text-[10px] font-black px-4 py-3 rounded-2xl uppercase tracking-widest shadow-lg shadow-blue-500/20 w-fit">
+           {filteredClients.length} Registros
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
         {loading ? (
-             <div className="col-span-full flex justify-center py-10"><Loader className="animate-spin text-gray-400" size={32}/></div>
+             <div className="col-span-full flex justify-center py-20"><Loader className="animate-spin text-blue-500" size={48}/></div>
         ) : filteredClients.length === 0 ? (
-             <div className="col-span-full text-center py-12 text-gray-500 bg-white rounded-xl border border-gray-200 border-dashed">
-                 <User size={48} className="mx-auto text-gray-300 mb-3" />
-                 <p>Nenhum cliente encontrado.</p>
+             <div className="col-span-full text-center py-24 text-slate-400 italic font-medium bg-white rounded-[32px] border border-slate-100 shadow-sm">
+                 <User size={64} className="mx-auto text-slate-200 mb-4" />
+                 <p className="text-lg">Nenhum parceiro encontrado na base.</p>
              </div>
         ) : filteredClients.map((client) => (
-            <div key={client.id} className="bg-white rounded-xl shadow-sm border border-gray-200 p-6 hover:shadow-md transition group relative flex flex-col h-full">
-                <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="w-12 h-12 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-xl shrink-0">
+            <div key={client.id} className="premium-card p-8 flex flex-col h-full group relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-8 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity">
+                    <User size={120} />
+                </div>
+                
+                <div className="flex justify-between items-start mb-6 relative z-10">
+                    <div className="flex items-center gap-4 overflow-hidden">
+                        <div className="w-16 h-16 bg-slate-900 text-white rounded-[20px] flex items-center justify-center font-black text-2xl shrink-0 shadow-xl shadow-slate-900/20 group-hover:scale-105 transition-transform duration-500">
                             {client.name.charAt(0).toUpperCase()}
                         </div>
                         <div className="overflow-hidden">
-                             <h3 className="text-lg font-bold text-gray-800 leading-tight truncate" title={client.name}>{client.name}</h3>
-                             <div className="flex items-center text-xs text-gray-500 font-mono mt-1 bg-gray-50 border border-gray-100 px-2 py-0.5 rounded w-fit">
-                                <FileText size={10} className="mr-1" />
-                                {client.document || 'Doc. não informado'}
+                             <h3 className="text-xl font-black text-slate-800 leading-tight uppercase tracking-tight group-hover:text-blue-600 transition-colors truncate" title={client.name}>{client.name}</h3>
+                             <div className="flex items-center text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1.5 bg-slate-50 px-2 py-0.5 rounded-lg border border-slate-100 w-fit">
+                                {client.document || 'DOC PENDENTE'}
                              </div>
                         </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); handleOpenEditModal(client); }}
-                            className="text-gray-400 hover:text-blue-600 hover:bg-blue-50 p-2 rounded-full transition shrink-0"
-                            title="Editar Cliente"
-                        >
-                            <Edit size={18} />
-                        </button>
-                        <button 
-                            onClick={(e) => handleDelete(client.id, e)} 
-                            className="text-gray-400 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition shrink-0"
-                            title="Excluir Cliente"
-                        >
-                            <Trash2 size={18} />
-                        </button>
-                    </div>
                 </div>
                 
-                <div className="space-y-3 mt-4 pt-4 border-t border-gray-100 flex-1">
-                    <div className="flex items-start text-sm text-gray-600">
-                        <Phone size={16} className="mr-3 text-gray-400 mt-0.5 shrink-0"/>
-                        <span className="flex-1 truncate">{client.phone || '-'}</span>
+                <div className="space-y-4 mt-2 pt-6 border-t border-slate-50 flex-1 relative z-10">
+                    <div className="flex items-center text-xs font-bold text-slate-500">
+                        <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center mr-3 border border-slate-100">
+                           <Phone size={14} className="text-slate-400"/>
+                        </div>
+                        <span className="flex-1 truncate">{client.phone || 'N/A'}</span>
                     </div>
-                    <div className="flex items-start text-sm text-gray-600">
-                        <Mail size={16} className="mr-3 text-gray-400 mt-0.5 shrink-0"/>
-                        <span className="flex-1 break-all truncate">{client.email || '-'}</span>
+                    <div className="flex items-center text-xs font-bold text-slate-500">
+                        <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center mr-3 border border-slate-100">
+                           <Mail size={14} className="text-slate-400"/>
+                        </div>
+                        <span className="flex-1 truncate lowercase">{client.email || 'N/A'}</span>
                     </div>
-                    <div className="flex items-start text-sm text-gray-600">
-                        <MapPin size={16} className="mr-3 text-gray-400 mt-0.5 shrink-0"/>
-                        <span className="flex-1 line-clamp-2">{client.address || 'Endereço não informado'}</span>
+                    <div className="flex items-start text-xs font-bold text-slate-500 leading-relaxed italic">
+                        <div className="w-8 h-8 rounded-full bg-slate-50 flex items-center justify-center mr-3 border border-slate-100 shrink-0">
+                           <MapPin size={14} className="text-slate-400"/>
+                        </div>
+                        <span className="flex-1 mt-1.5">{client.address || 'Localização não mapeada'}</span>
                     </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 mt-5">
+                <div className="grid grid-cols-2 gap-3 mt-8 relative z-10">
                     <button 
                         onClick={() => onViewProjects && onViewProjects(client.name)}
-                        className="py-2.5 flex items-center justify-center text-gray-700 bg-gray-100 hover:bg-blue-600 hover:text-white rounded-lg font-bold transition text-xs sm:text-sm border border-gray-200 shadow-sm"
-                        title={`Ver todas as obras de ${client.name}`}
+                        className="py-3.5 flex items-center justify-center text-white bg-slate-900 hover:bg-black rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all shadow-xl shadow-slate-900/10 active:scale-95"
                     >
-                        <HardHat size={16} className="mr-2" />
-                        Ver Obras
+                        <HardHat size={14} className="mr-2" />
+                        Obras
                     </button>
                     <button 
                         onClick={() => handleViewDetails(client)}
-                        className="py-2.5 flex items-center justify-center text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg font-bold transition text-xs sm:text-sm border border-blue-100"
+                        className="py-3.5 flex items-center justify-center text-slate-900 bg-white border border-slate-200 hover:border-blue-300 hover:text-blue-600 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all active:scale-95"
                     >
-                        <Eye size={16} className="mr-2" />
-                        Detalhes
+                        <Eye size={14} className="mr-2" />
+                        Perfil
                     </button>
+                </div>
+
+                <div className="absolute top-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity translate-y-[-10px] group-hover:translate-y-0 duration-300">
+                     <button onClick={() => handleOpenEditModal(client)} className="p-2 bg-white rounded-lg border border-slate-200 text-slate-400 hover:text-blue-600 transition-colors shadow-sm"><Edit size={14}/></button>
+                     <button onClick={(e) => handleDelete(client.id, e)} className="p-2 bg-white rounded-lg border border-slate-200 text-slate-400 hover:text-rose-600 transition-colors shadow-sm"><Trash2 size={14}/></button>
                 </div>
             </div>
         ))}

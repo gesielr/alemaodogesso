@@ -1,5 +1,5 @@
-﻿import React, { useEffect, useState } from 'react';
-import { AlertTriangle, ArrowRight, Calendar, DollarSign, Download, Loader, MapPin, Package, Plus, Save, Search, Truck, Users } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { AlertTriangle, ArrowRight, Calendar, DollarSign, Download, Filter, Loader, MapPin, Package, Plus, RefreshCcw, Save, Search, Truck, Users } from 'lucide-react';
 import Modal from '../components/Modal';
 import { api } from '../services/api';
 import { Material, Project, ProjectCost, ProjectStatus, Employee, Vehicle, ProjectQuoteItem, ProjectQuoteDocument } from '../types';
@@ -18,6 +18,13 @@ interface NewProjectFormState {
   address: string;
   status: ProjectStatus;
   execution_deadline_days: string;
+  service: string;
+  execution_time: string;
+  material_cost: string;
+  vehicle_cost: string;
+  labor_cost: string;
+  tax_cost: string;
+  invoice_sent: boolean;
 }
 
 interface GenericCostFormState {
@@ -65,7 +72,14 @@ const emptyNewProject = (): NewProjectFormState => ({
   total_value: '',
   address: '',
   status: ProjectStatus.ORCAMENTO,
-  execution_deadline_days: ''
+  execution_deadline_days: '',
+  service: '',
+  execution_time: '',
+  material_cost: '',
+  vehicle_cost: '',
+  labor_cost: '',
+  tax_cost: '',
+  invoice_sent: false
 });
 
 const emptyGenericCostForm = (
@@ -214,17 +228,24 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
       setProjectDraft((prev) =>
         prev && prev.id === updated.id
           ? {
-            ...prev,
-            title: updated.title,
-            status: updated.status,
-            address: updated.address,
-            client_name: updated.client_name,
-            total_cost: updated.total_cost,
-            profit_margin: updated.profit_margin,
-            total_value: updated.total_value,
-            entry_value: updated.entry_value ?? prev.entry_value,
-            execution_deadline_days: updated.execution_deadline_days
-          }
+              ...prev,
+              title: updated.title,
+              status: updated.status,
+              address: updated.address,
+              client_name: updated.client_name,
+              total_cost: updated.total_cost,
+              profit_margin: updated.profit_margin,
+              total_value: updated.total_value,
+              entry_value: updated.entry_value ?? prev.entry_value,
+              execution_deadline_days: updated.execution_deadline_days ?? prev.execution_deadline_days,
+              service: updated.service ?? prev.service,
+              execution_time: updated.execution_time ?? prev.execution_time,
+              material_cost: updated.material_cost ?? prev.material_cost,
+              vehicle_cost: updated.vehicle_cost ?? prev.vehicle_cost,
+              labor_cost: updated.labor_cost ?? prev.labor_cost,
+              tax_cost: updated.tax_cost ?? prev.tax_cost,
+              invoice_sent: updated.invoice_sent ?? prev.invoice_sent
+            }
           : prev
       );
     } finally {
@@ -246,17 +267,24 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
         !prev || prev.id !== projectId || replaceDraft
           ? { ...projectData }
           : {
-            ...prev,
-            title: projectData.title,
-            status: projectData.status,
-            address: projectData.address,
-            client_name: projectData.client_name,
-            total_cost: projectData.total_cost,
-            profit_margin: projectData.profit_margin,
-            total_value: projectData.total_value,
-            entry_value: projectData.entry_value ?? prev.entry_value,
-            execution_deadline_days: projectData.execution_deadline_days
-          }
+              ...prev,
+              title: projectData.title,
+              status: projectData.status,
+              address: projectData.address,
+              client_name: projectData.client_name,
+              total_cost: projectData.total_cost,
+              profit_margin: projectData.profit_margin,
+              total_value: projectData.total_value,
+              entry_value: projectData.entry_value ?? prev.entry_value,
+              execution_deadline_days: projectData.execution_deadline_days ?? prev.execution_deadline_days,
+              service: projectData.service ?? prev.service,
+              execution_time: projectData.execution_time ?? prev.execution_time,
+              material_cost: projectData.material_cost ?? prev.material_cost,
+              vehicle_cost: projectData.vehicle_cost ?? prev.vehicle_cost,
+              labor_cost: projectData.labor_cost ?? prev.labor_cost,
+              tax_cost: projectData.tax_cost ?? prev.tax_cost,
+              invoice_sent: projectData.invoice_sent ?? prev.invoice_sent
+            }
       );
     } else {
       console.error(projectResult.status === 'rejected' ? projectResult.reason : 'Projeto nao encontrado');
@@ -426,7 +454,14 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
         total_value: totalFromQuote > 0 ? totalFromQuote : toNumber(newProject.total_value),
         entry_value: 0,
         address: newProject.address.trim(),
-        execution_deadline_days: toNumber(newProject.execution_deadline_days)
+        execution_deadline_days: toNumber(newProject.execution_deadline_days),
+        service: newProject.service.trim(),
+        execution_time: newProject.execution_time.trim(),
+        material_cost: toNumber(newProject.material_cost),
+        vehicle_cost: toNumber(newProject.vehicle_cost),
+        labor_cost: toNumber(newProject.labor_cost),
+        tax_cost: toNumber(newProject.tax_cost),
+        invoice_sent: newProject.invoice_sent
       });
 
       if (quoteItemsToSave.length > 0) {
@@ -639,92 +674,103 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
         </button>
       </div>
 
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} />
-          <input type="text" placeholder="Buscar por nome da obra ou cliente..." className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition bg-white text-gray-900" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+      <div className="bg-white/70 backdrop-blur-md p-6 rounded-3xl shadow-xl shadow-slate-200/40 border border-white flex flex-col sm:flex-row gap-4 items-center ring-1 ring-slate-100">
+        <div className="relative flex-1 w-full group">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={20} />
+          <input 
+            type="text" 
+            placeholder="Buscar por nome da obra ou cliente..." 
+            className="w-full pl-12 pr-4 py-3 border-none bg-slate-50 rounded-2xl focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-slate-700 font-medium placeholder:text-slate-400" 
+            value={searchTerm} 
+            onChange={(e) => setSearchTerm(e.target.value)} 
+          />
         </div>
-        <select className="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-700 focus:ring-2 focus:ring-blue-500 outline-none" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as ProjectStatus | 'ALL')}>
-          <option value="ALL">Todos os Status</option>
-          {Object.values(ProjectStatus).map((status) => <option key={status} value={status}>{status}</option>)}
-        </select>
+        <div className="flex gap-2 w-full sm:w-auto">
+          <select 
+            className="flex-1 sm:flex-none px-6 py-3 border-none bg-slate-50 rounded-2xl text-slate-600 font-bold text-xs uppercase tracking-widest focus:ring-2 focus:ring-blue-500/20 outline-none cursor-pointer appearance-none" 
+            value={statusFilter} 
+            onChange={(e) => setStatusFilter(e.target.value as ProjectStatus | 'ALL')}
+          >
+            <option value="ALL">Todos Status</option>
+            {Object.values(ProjectStatus).map((status) => (
+              <option key={status} value={status}>{status}</option>
+            ))}
+          </select>
+          <div className="sm:hidden flex items-center justify-center p-3 bg-slate-50 rounded-2xl">
+             <Filter size={20} className="text-slate-400" />
+          </div>
+        </div>
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-500 flex items-center justify-center">
-          <Loader className="animate-spin mr-2" size={20} /> Carregando obras...
+        <div className="flex flex-col items-center justify-center py-32 text-slate-400 space-y-4">
+          <Loader className="animate-spin text-blue-600" size={32} /> 
+          <span className="font-bold uppercase tracking-widest text-[10px]">Consultando canteiro de obras...</span>
         </div>
       ) : filteredProjects.length === 0 ? (
-        <div className="bg-white rounded-xl shadow-sm border border-dashed border-gray-300 p-10 text-center text-gray-500">
-          Nenhuma obra encontrada para o filtro atual.
+        <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-dashed border-slate-300 p-20 text-center text-slate-500 flex flex-col items-center">
+          <div className="p-4 bg-slate-50 rounded-full mb-4">
+             <Package size={40} className="text-slate-300" />
+          </div>
+          <p className="font-bold text-slate-400">Nenhuma obra encontrada para o filtro atual.</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
           {filteredProjects.map((project) => (
-            <div key={project.id} className="bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition duration-200 flex flex-col">
-              <div className="p-5 flex-1">
-                <div className="flex justify-between items-start mb-3">
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${getStatusColor(project.status)}`}>{project.status}</span>
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      onClick={() => openQuoteModal(project)}
-                      className="text-blue-400 hover:text-blue-600 p-1 hover:bg-blue-50 rounded transition"
-                      title="Editar Orçamento"
-                    >
-                      <Package size={18} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        if (window.confirm(`Deseja realmente excluir a obra "${project.title}"? Esta acao nao pode ser desfeita.`)) {
-                          try {
-                            await api.deleteProject(project.id);
-                            await fetchProjects(false);
-                          } catch (error) {
-                            console.error(error);
-                            window.alert('Nao foi possivel excluir a obra.');
-                          }
-                        }
-                      }}
-                      className="text-red-400 hover:text-red-600 p-1 hover:bg-red-50 rounded transition"
-                      title="Excluir Obra"
-                    >
-                      <Plus size={18} className="rotate-45" />
-                    </button>
-                    <button type="button" onClick={() => void openTrackingModal(project)} className="text-gray-400 hover:text-gray-600 p-1 hover:bg-gray-50 rounded transition" title="Acompanhar obra">
-                      <ArrowRight size={20} />
-                    </button>
+            <div key={project.id} className="premium-card flex flex-col group overflow-hidden border-none shadow-xl shadow-slate-200/40 bg-white ring-1 ring-slate-200/50">
+              <div className="h-2 w-full bg-gradient-to-r from-blue-500 to-indigo-600 opacity-80" />
+              <div className="p-6 flex-1">
+                <div className="flex justify-between items-start mb-6">
+                  <span className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter shadow-sm border ${getStatusColor(project.status)}`}>{project.status}</span>
+                  <button type="button" onClick={() => void openTrackingModal(project)} className="p-2 text-slate-300 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all duration-300" title="Acompanhar obra">
+                    <ArrowRight size={22} />
+                  </button>
+                </div>
+
+                <div className="mb-4">
+                  <h3 className="text-xl font-extrabold text-slate-900 mb-1 leading-tight group-hover:text-blue-600 transition-colors tracking-tight">{project.title}</h3>
+                  <div className="flex items-center text-slate-400 text-xs font-bold uppercase tracking-wider">
+                     <Users size={14} className="mr-2" />
+                     {project.client_name}
                   </div>
                 </div>
 
-                <h3 className="text-lg font-bold text-gray-800 mb-1 line-clamp-1">{project.title}</h3>
-                <p className="text-gray-500 text-sm mb-4">{project.client_name}</p>
-
-                <div className="space-y-2 text-sm text-gray-600">
-                  <div className="flex items-center">
-                    <MapPin size={16} className="mr-2 text-gray-400" />
+                <div className="space-y-3 pt-4 border-t border-slate-50">
+                  <div className="flex items-center text-sm text-slate-600 font-medium">
+                    <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center mr-3">
+                       <MapPin size={15} className="text-slate-400" />
+                    </div>
                     <span className="truncate">{project.address}</span>
                   </div>
-                  <div className="flex items-center">
-                    <Calendar size={16} className="mr-2 text-gray-400" />
-                    <span>{project.start_date ? new Date(project.start_date).toLocaleDateString('pt-BR') : 'Data nao definida'}</span>
+                  <div className="flex items-center text-sm text-slate-600 font-medium">
+                    <div className="w-8 h-8 rounded-lg bg-slate-50 flex items-center justify-center mr-3">
+                       <Calendar size={15} className="text-slate-400" />
+                    </div>
+                    <span>{project.start_date ? new Date(project.start_date).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' }) : 'Planejada'}</span>
                   </div>
-                  <div className="flex items-center">
-                    <DollarSign size={16} className="mr-2 text-gray-400" />
-                    <span className="font-medium text-gray-900">{formatMoney(project.total_value)}</span>
+                  <div className="flex items-center text-sm font-bold text-slate-900 bg-blue-50/50 p-3 rounded-2xl border border-blue-100/50">
+                    <DollarSign size={18} className="mr-2 text-blue-600" />
+                    <span>{formatMoney(project.total_value)}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-gray-50 px-5 py-3 border-t border-gray-100 rounded-b-xl">
-                <div className="flex justify-between items-center text-xs">
-                  <span className="text-gray-500">Rentabilidade Estimada</span>
-                  {project.profit_margin !== undefined && <span className={`font-bold ${project.profit_margin > 0 ? 'text-green-600' : 'text-gray-600'}`}>{formatMoney(project.profit_margin)}</span>}
+              <div className="bg-slate-50/80 backdrop-blur-sm px-6 py-4 flex flex-col gap-3">
+                <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-widest">
+                  <span className="text-slate-400">Margem Estimada</span>
+                  {project.profit_margin !== undefined && <span className={`${project.profit_margin > 0 ? 'text-green-600' : 'text-slate-400'}`}>{formatMoney(project.profit_margin)}</span>}
                 </div>
                 {project.total_cost !== undefined && project.total_value > 0 && (
-                  <div className="w-full bg-gray-200 rounded-full h-1.5 mt-2 overflow-hidden">
-                    <div className="bg-blue-500 h-1.5 rounded-full" style={{ width: `${Math.min(((project.total_cost || 0) / project.total_value) * 100, 100)}%` }} />
+                  <div className="relative">
+                    <div className="w-full bg-slate-200 rounded-full h-2 overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full transition-all duration-1000 ${((project.total_cost || 0) / project.total_value) > 0.9 ? 'bg-red-500' : 'bg-blue-600'}`} 
+                        style={{ width: `${Math.min(((project.total_cost || 0) / project.total_value) * 100, 100)}%` }} 
+                      />
+                    </div>
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-[8px] font-bold text-white drop-shadow-sm">
+                       {Math.round(((project.total_cost || 0) / project.total_value) * 100)}%
+                    </div>
                   </div>
                 )}
               </div>
@@ -732,159 +778,251 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
           ))}
         </div>
       )}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Cadastrar Nova Obra" maxWidth="max-w-3xl">
+        <form onSubmit={handleAddProject} className="space-y-6 py-2">
+          <div className="bg-slate-50 p-6 rounded-2xl border border-slate-100 space-y-4">
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Informações Básicas</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Título do Projeto</label>
+                <input required type="text" placeholder="Ex: Reforma Apartamento 402 - Ed. Solar" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white font-medium" value={newProject.title} onChange={(e) => setNewProject((prev) => ({ ...prev, title: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Cliente</label>
+                <div className="relative">
+                  <Users className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input required type="text" placeholder="Nome do cliente" className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white font-medium" value={newProject.client_name} onChange={(e) => setNewProject((prev) => ({ ...prev, client_name: e.target.value }))} />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Status Inicial</label>
+                <select className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white font-medium cursor-pointer" value={newProject.status} onChange={(e) => setNewProject((prev) => ({ ...prev, status: e.target.value as ProjectStatus }))}>
+                  {Object.values(ProjectStatus).map((status) => <option key={status} value={status}>{status}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Nova Obra">
-        <form onSubmit={handleAddProject} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Titulo da Obra</label>
-            <input required type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900" value={newProject.title} onChange={(e) => setNewProject((prev) => ({ ...prev, title: e.target.value }))} />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
-            <input required type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900" value={newProject.client_name} onChange={(e) => setNewProject((prev) => ({ ...prev, client_name: e.target.value }))} />
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Valor Total (R$) {quoteItems.some(i => i.description.trim()) && <span className="text-xs text-blue-600 font-normal italic">(Calculado pelo orcamento)</span>}
-              </label>
-              <input
-                required
-                type="number"
-                step="0.01"
-                min="0"
-                className={`w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900 ${quoteItems.some(i => i.description.trim()) ? 'bg-gray-50 opacity-80 cursor-not-allowed font-bold' : ''}`}
-                value={quoteItems.some(i => i.description.trim()) ? quoteItems.reduce((acc, curr) => acc + curr.total_value, 0) : newProject.total_value}
-                onChange={(e) => setNewProject((prev) => ({ ...prev, total_value: e.target.value }))}
-                readOnly={quoteItems.some(i => i.description.trim())}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-              <button
-                type="button"
-                onClick={() => setIsQuoteModalOpen(true)}
-                className="w-full px-4 py-2.5 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition shadow-md flex items-center justify-center gap-2"
-              >
-                Orçamento
-              </button>
+          <div className="bg-white p-6 rounded-2xl border border-slate-100 space-y-4 shadow-sm">
+            <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-2">Detalhes Operacionais</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Serviço Prestado</label>
+                <input type="text" placeholder="Ex: Forro de Gesso + Sanca" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-slate-50/50" value={newProject.service} onChange={(e) => setNewProject((prev) => ({ ...prev, service: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Previsão Execução</label>
+                <input type="text" placeholder="Ex: 5 dias úteis" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-slate-50/50" value={newProject.execution_time} onChange={(e) => setNewProject((prev) => ({ ...prev, execution_time: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Prazo (dias)</label>
+                <input type="number" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-slate-50/50" value={newProject.execution_deadline_days} onChange={(e) => setNewProject((prev) => ({ ...prev, execution_deadline_days: e.target.value }))} placeholder="Ex: 30" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Local da Obra</label>
+                <div className="relative">
+                  <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <input required type="text" placeholder="Endereço completo" className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-slate-50/50" value={newProject.address} onChange={(e) => setNewProject((prev) => ({ ...prev, address: e.target.value }))} />
+                </div>
+              </div>
             </div>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Endereco</label>
-            <input required type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900" value={newProject.address} onChange={(e) => setNewProject((prev) => ({ ...prev, address: e.target.value }))} />
+
+          <div className="bg-blue-50/50 p-6 rounded-2xl border border-blue-100 space-y-4">
+            <h4 className="text-xs font-bold text-blue-400 uppercase tracking-widest mb-2">Planejamento Financeiro</h4>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-xs font-bold text-blue-600 uppercase tracking-wider mb-1.5 ml-1">Valor Venda (R$)</label>
+                <input required type="number" step="0.01" min="0" placeholder="0.00" className="w-full px-4 py-3 rounded-xl border border-blue-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white font-bold text-blue-700" value={newProject.total_value} onChange={(e) => setNewProject((prev) => ({ ...prev, total_value: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Est. Mão de Obra</label>
+                <input type="number" step="0.01" min="0" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white" value={newProject.labor_cost} onChange={(e) => setNewProject((prev) => ({ ...prev, labor_cost: e.target.value }))} />
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5 ml-1">Est. Materiais</label>
+                <input type="number" step="0.01" min="0" className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-blue-500 outline-none transition-all bg-white" value={newProject.material_cost} onChange={(e) => setNewProject((prev) => ({ ...prev, material_cost: e.target.value }))} />
+              </div>
+            </div>
+            
+            <label className="flex items-center gap-3 cursor-pointer p-2 hover:bg-white rounded-lg transition-colors group">
+              <input type="checkbox" className="w-5 h-5 rounded-lg border-blue-300 text-blue-600 focus:ring-blue-500 transition-all" checked={newProject.invoice_sent} onChange={(e) => setNewProject(prev => ({ ...prev, invoice_sent: e.target.checked }))} />
+              <span className="text-sm font-semibold text-slate-600 group-hover:text-blue-700">Nota Fiscal emitida para esta obra?</span>
+            </label>
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Prazo de Execucao (dias)</label>
-            <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900" value={newProject.execution_deadline_days} onChange={(e) => setNewProject((prev) => ({ ...prev, execution_deadline_days: e.target.value }))} placeholder="Ex: 30" />
-          </div>
-          <div className="pt-4 flex justify-end gap-3">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium">Cancelar</button>
-            <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">Salvar Obra</button>
+
+          <div className="pt-4 flex flex-col sm:flex-row justify-end gap-3">
+            <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-3 text-slate-500 hover:bg-slate-100 rounded-xl font-bold uppercase text-[11px] tracking-widest transition-all">Cancelar</button>
+            <button type="submit" className="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold uppercase text-[11px] tracking-widest shadow-xl shadow-blue-600/20 hover:bg-blue-700 hover:-translate-y-0.5 active:translate-y-0 transition-all">Salvar Projeto</button>
           </div>
         </form>
       </Modal>
 
-      <Modal isOpen={isTrackingModalOpen} onClose={closeTrackingModal} title={projectDraft ? `Acompanhamento da Obra - ${projectDraft.title}` : 'Acompanhamento da Obra'} maxWidth="max-w-6xl">
-        {!projectDraft ? (
-          <div className="text-sm text-gray-500">Nenhuma obra selecionada.</div>
-        ) : (
-          <div className="space-y-5">
-            {trackingLoading && <div className="flex items-center text-sm text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2"><Loader size={16} className="animate-spin mr-2" />Carregando dados da obra...</div>}
-            {trackingNotice && <div className="flex items-start text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2"><AlertTriangle size={16} className="mr-2 mt-0.5 shrink-0" /><span>{trackingNotice}</span></div>}
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              <div className="lg:col-span-2 border border-gray-200 rounded-xl p-4 bg-white space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="font-semibold text-gray-900">Dados da obra</h4>
-                    <p className="text-xs text-gray-500">Somente os campos principais do acompanhamento.</p>
+      <Modal isOpen={isTrackingModalOpen} onClose={closeTrackingModal} title={projectDraft ? `Gestão da Obra: ${projectDraft.title}` : 'Acompanhamento da Obra'} maxWidth="max-w-6xl">
+        {!projectDraft ? (
+          <div className="text-sm text-slate-500 py-20 text-center uppercase tracking-widest font-black">Nenhuma obra selecionada.</div>
+        ) : (
+          <div className="space-y-6 pb-4">
+            {trackingLoading && (
+              <div className="flex items-center text-[10px] font-black uppercase tracking-widest text-blue-600 bg-blue-50/50 border border-blue-100 rounded-2xl px-4 py-3 animate-pulse">
+                <RefreshCcw size={14} className="animate-spin mr-3 text-blue-500" />
+                Sincronizando dados do canteiro...
+              </div>
+            )}
+            {trackingNotice && (
+              <div className="flex items-start text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3">
+                <AlertTriangle size={18} className="mr-3 mt-0.5 shrink-0 text-amber-500" />
+                <span className="font-medium">{trackingNotice}</span>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+              <div className="lg:col-span-3 space-y-6">
+                <div className="premium-card p-8 bg-white/50 backdrop-blur-sm border-slate-100 shadow-xl shadow-slate-200/30">
+                  <div className="flex items-center justify-between mb-8 border-b border-slate-100 pb-4">
+                    <div>
+                      <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">Painel de Controle</h4>
+                      <p className="text-xl font-extrabold text-slate-900 tracking-tight">Detalhes & Operação</p>
+                    </div>
+                    <span className={`px-4 py-2 rounded-2xl text-[10px] font-black uppercase tracking-widest border shadow-sm ${financeIndicator.classes}`}>
+                      {financeIndicator.label}
+                    </span>
                   </div>
-                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold border ${financeIndicator.classes}`}>{financeIndicator.label}</span>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Título da Obra</label>
+                      <input className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white font-bold text-slate-800 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all shadow-sm" value={projectDraft.title} onChange={(e) => setProjectDraft({ ...projectDraft, title: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Status da Execução</label>
+                      <select className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white font-bold text-slate-800 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all shadow-sm cursor-pointer" value={projectDraft.status} onChange={(e) => setProjectDraft({ ...projectDraft, status: e.target.value as ProjectStatus })}>
+                        {Object.values(ProjectStatus).map((status) => <option key={status} value={status}>{status}</option>)}
+                      </select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Serviço / Escopo</label>
+                      <input className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white font-medium text-slate-700" value={projectDraft.service || ''} placeholder="Ex: Gesso acartonado em 3 pavimentos" onChange={(e) => setProjectDraft({ ...projectDraft, service: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Previsão de Prazo</label>
+                      <input className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white font-medium text-slate-700" value={projectDraft.execution_time || ''} placeholder="Ex: 15 dias" onChange={(e) => setProjectDraft({ ...projectDraft, execution_time: e.target.value })} />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Local da Instalação</label>
+                      <div className="relative group">
+                        <MapPin size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" />
+                        <input className="w-full pl-11 pr-4 py-3 rounded-2xl border border-slate-200 bg-white font-medium text-slate-700 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all shadow-sm" value={projectDraft.address} onChange={(e) => setProjectDraft({ ...projectDraft, address: e.target.value })} />
+                      </div>
+                    </div>
+                  </div>                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 ml-1">Prazo (dias)</label>
+                      <input type="number" className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white font-medium text-slate-700 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all shadow-sm" value={projectDraft.execution_deadline_days || ''} onChange={(e) => setProjectDraft({ ...projectDraft, execution_deadline_days: toNumber(e.target.value) })} />
+                    </div>
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Titulo</label>
-                    <input className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" value={projectDraft.title} onChange={(e) => setProjectDraft({ ...projectDraft, title: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" value={projectDraft.status} onChange={(e) => setProjectDraft({ ...projectDraft, status: e.target.value as ProjectStatus })}>
-                      {Object.values(ProjectStatus).map((status) => <option key={status} value={status}>{status}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Cliente</label>
-                    <div className="w-full px-3 py-2 border border-gray-200 rounded-lg bg-gray-50 text-gray-700">{projectDraft.client_name || '-'}</div>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Endereco</label>
-                    <input className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" value={projectDraft.address} onChange={(e) => setProjectDraft({ ...projectDraft, address: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Prazo (dias)</label>
-                    <input type="number" className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" value={projectDraft.execution_deadline_days || ''} onChange={(e) => setProjectDraft({ ...projectDraft, execution_deadline_days: toNumber(e.target.value) })} />
-                  </div>
+                   <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Cliente Solicitante</span>
+                        <span className="text-lg font-extrabold text-slate-800">{projectDraft.client_name || '-'}</span>
+                      </div>
+                      <div className="p-3 bg-white rounded-2xl shadow-sm"><Users className="text-blue-500" size={20} /></div>
+                   </div>
+                   <div className="bg-slate-50/50 p-6 rounded-3xl border border-slate-100 flex items-center justify-between">
+                      <div>
+                        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">Nota Fiscal</span>
+                        <label className="flex items-center gap-3 cursor-pointer group">
+                           <input type="checkbox" className="w-5 h-5 rounded-lg border-slate-300 text-blue-600 focus:ring-blue-500 transition-all" checked={projectDraft.invoice_sent} onChange={(e) => setProjectDraft({ ...projectDraft, invoice_sent: e.target.checked })} />
+                           <span className="text-sm font-bold text-slate-600 group-hover:text-blue-600">Documentação Emitida</span>
+                        </label>
+                      </div>
+                      <div className="p-3 bg-white rounded-2xl shadow-sm"><Package className="text-blue-500" size={20} /></div>
+                   </div>
                 </div>
               </div>
 
-              <div className="border border-gray-200 rounded-xl p-4 bg-white space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="font-semibold text-gray-900">Orcamento da Obra</h4>
-                  <button
-                    type="button"
-                    onClick={() => openQuoteModal(projectDraft)}
-                    className="text-xs text-blue-600 hover:text-blue-700 font-bold underline"
-                  >
-                    Orcamento Detalhado
-                  </button>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Orcamento atual (R$)</label>
-                  <input type="number" min={0} step="0.01" className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" value={projectDraft.total_value || ''} onChange={(e) => setProjectDraft({ ...projectDraft, total_value: Number(e.target.value || 0) })} />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Entrada (R$)</label>
-                  <input type="number" min={0} step="0.01" className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" value={projectDraft.entry_value || ''} onChange={(e) => setProjectDraft({ ...projectDraft, entry_value: Number(e.target.value || 0) })} />
-                </div>
-                <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Saldo</span>
-                    <span className={`font-semibold ${balanceValue >= 0 ? 'text-emerald-700' : 'text-red-600'}`}>{formatMoney(balanceValue)}</span>
+              <div className="space-y-6">
+                <div className="premium-card p-6 bg-gradient-to-br from-slate-900 to-slate-800 text-white border-none shadow-2xl shadow-slate-900/40">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-6">Resumo Financeiro</h4>
+                  
+                  <div className="space-y-6">
+                    <div>
+                      <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Valor da Venda (R$)</label>
+                      <input type="number" min={0} step="0.01" className="w-full px-4 py-3 rounded-2xl bg-white/10 border border-white/10 text-xl font-black text-white focus:ring-2 focus:ring-blue-500/50 outline-none transition-all shadow-inner" value={projectDraft.total_value || ''} onChange={(e) => setProjectDraft({ ...projectDraft, total_value: Number(e.target.value || 0) })} />
+                    </div>
+
+                    <div>
+                      <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2">Entrada Recebida (R$)</label>
+                      <input type="number" min={0} step="0.01" className="w-full px-4 py-3 rounded-2xl bg-white/10 border border-white/10 text-xl font-black text-emerald-400 focus:ring-2 focus:ring-emerald-500/50 outline-none transition-all shadow-inner" value={projectDraft.entry_value || ''} onChange={(e) => setProjectDraft({ ...projectDraft, entry_value: Number(e.target.value || 0) })} />
+                    </div>
+
+                    <div className="pt-4 border-t border-white/10 space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Saldo Aberto</span>
+                        <span className={`text-sm font-black ${balanceValue >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>{formatMoney(balanceValue)}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Custo Real (Lançado)</span>
+                        <span className="text-sm font-black text-white">{formatMoney(totalCost)}</span>
+                      </div>
+                    </div>
+
+                    <div className="relative pt-2">
+                       <div className="flex justify-between text-[8px] font-black uppercase text-slate-500 mb-2">
+                          <span>Consumo de Orçamento</span>
+                          <span className={budgetPercent > 100 ? 'text-rose-400' : 'text-blue-400'}>{budgetPercent.toFixed(1)}%</span>
+                       </div>
+                       <div className="h-2 w-full bg-white/5 rounded-full overflow-hidden border border-white/5">
+                          <div 
+                            className={`h-full transition-all duration-1000 ${budgetPercent > 100 ? 'bg-rose-500' : 'bg-blue-500'}`}
+                            style={{ width: `${Math.min(budgetPercent, 100)}%` }}
+                          />
+                       </div>
+                    </div>
+                    
+                    <button type="button" onClick={() => void saveTrackingProject()} disabled={savingProject} className="w-full mt-4 flex justify-center items-center px-6 py-4 rounded-2xl bg-blue-600 text-white font-black text-[10px] uppercase tracking-widest hover:bg-blue-700 hover:-translate-y-1 active:translate-y-0 transition-all shadow-xl shadow-blue-600/20 disabled:opacity-50">
+                      {savingProject ? <RefreshCcw size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />}
+                      Salvar Alterações
+                    </button>
                   </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Custo acumulado</span>
-                    <span className="font-semibold">{formatMoney(totalCost)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">% consumido</span>
-                    <span className="font-semibold">{budgetPercent.toFixed(1)}%</span>
-                  </div>
                 </div>
-                {budgetPercent >= 80 && (
-                  <div className={`text-xs rounded-lg px-3 py-2 border flex items-start ${budgetPercent > 100 ? 'bg-red-50 border-red-200 text-red-700' : 'bg-amber-50 border-amber-200 text-amber-700'}`}>
-                    <AlertTriangle size={14} className="mr-2 mt-0.5 shrink-0" />
-                    <span>{budgetPercent > 100 ? 'Custo acima do orcamento.' : 'Atencao: custo proximo do orcamento.'}</span>
-                  </div>
-                )}
-                <button type="button" onClick={() => void saveTrackingProject()} disabled={savingProject} className="w-full inline-flex justify-center items-center px-4 py-2 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 disabled:opacity-70">
-                  {savingProject ? <Loader size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />}
-                  Salvar alteracoes
-                </button>
+
+                <div className="premium-card p-6 bg-slate-50 border-slate-200">
+                   <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Estimativa de Impostos</h4>
+                   <div>
+                      <label className="block text-[9px] font-black text-slate-500 uppercase tracking-widest mb-2 ml-1">Imposto Previsto (R$)</label>
+                      <input type="number" min={0} step="0.01" className="w-full px-4 py-3 rounded-2xl border border-slate-200 bg-white font-bold text-slate-700 shadow-sm" value={projectDraft.tax_cost || ''} placeholder="0.00" onChange={(e) => setProjectDraft({ ...projectDraft, tax_cost: Number(e.target.value || 0) })} />
+                      <p className="text-[9px] text-slate-400 mt-2 italic px-1">* Use este campo para notas fiscais ou taxas governamentais.</p>
+                   </div>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[{ type: 'MATERIAL' as ProjectCostType, value: materialTotal }, { type: 'VEHICLE' as ProjectCostType, value: vehicleTotal }, { type: 'LABOR' as ProjectCostType, value: laborTotal }].map(({ type, value }) => {
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {[
+                { type: 'MATERIAL' as ProjectCostType, value: materialTotal, color: 'text-blue-600', bg: 'bg-blue-50' }, 
+                { type: 'VEHICLE' as ProjectCostType, value: vehicleTotal, color: 'text-amber-600', bg: 'bg-amber-50' }, 
+                { type: 'LABOR' as ProjectCostType, value: laborTotal, color: 'text-emerald-600', bg: 'bg-emerald-50' }
+              ].map(({ type, value, color, bg }) => {
                 const Icon = getCostIcon(type);
                 return (
-                  <div key={type} className="border border-gray-200 rounded-xl p-4 bg-white">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center"><Icon size={18} className="mr-2 text-gray-700" /><span className="text-sm font-medium text-gray-700">{costTypeLabel[type]}</span></div>
-                      <button type="button" onClick={() => void openCostModal(type)} className="text-xs text-blue-600 hover:text-blue-700 font-medium">Adicionar lancamento</button>
+                  <div key={type} className="premium-card p-6 bg-white border-slate-100 shadow-lg shadow-slate-200/20 group hover:border-blue-200 transition-all">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className={`p-3 rounded-2xl ${bg} group-hover:scale-110 transition-transform`}>
+                        <Icon size={20} className={color} />
+                      </div>
+                      <button type="button" onClick={() => void openCostModal(type)} className="text-[10px] font-black uppercase tracking-widest text-blue-600 hover:text-blue-800 bg-blue-50/50 px-3 py-1.5 rounded-xl transition-all">
+                        Lançar +
+                      </button>
                     </div>
-                    <div className="text-xl font-bold text-gray-900">{formatMoney(value)}</div>
+                    <div>
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">{costTypeLabel[type]} Acumulado</span>
+                      <div className="text-2xl font-black text-slate-900 tracking-tighter">{formatMoney(value)}</div>
+                    </div>
                   </div>
                 );
               })}
@@ -893,160 +1031,260 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
         )}
       </Modal>
 
-      <Modal isOpen={isCostModalOpen} onClose={closeCostModal} title={activeCostType ? `Adicionar lancamento - ${costTypeLabel[activeCostType]}` : 'Adicionar lancamento'} fullScreen bodyClassName="bg-gray-50">
+      <Modal isOpen={isCostModalOpen} onClose={closeCostModal} title={activeCostType ? `Adicionar lançamento - ${costTypeLabel[activeCostType]}` : 'Adicionar lançamento'} fullScreen bodyClassName="bg-slate-50">
         {activeCostType === 'MATERIAL' ? (
-          <form onSubmit={saveMaterialCost} className="h-full flex flex-col gap-6">
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-4">
-              <div className="xl:col-span-3 bg-white border border-gray-200 rounded-xl p-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <form onSubmit={saveMaterialCost} className="h-full flex flex-col gap-8">
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
+              <div className="xl:col-span-3 bg-white p-8 rounded-3xl shadow-xl shadow-slate-200/30 border border-slate-50 space-y-6">
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 pb-4">Configuração da Requisição</h4>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Data</label>
-                    <input type="date" className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" value={materialCostForm.date} onChange={(e) => setMaterialCostForm((prev) => ({ ...prev, date: e.target.value }))} />
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Data da Saída</label>
+                    <div className="relative">
+                      <Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input type="date" className="w-full pl-11 pr-4 py-4 rounded-2xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-bold text-slate-900" value={materialCostForm.date} onChange={(e) => setMaterialCostForm((prev) => ({ ...prev, date: e.target.value }))} />
+                    </div>
                   </div>
                   <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Observacao</label>
-                    <input type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" placeholder="Opcional" value={materialCostForm.notes} onChange={(e) => setMaterialCostForm((prev) => ({ ...prev, notes: e.target.value }))} />
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Notas de Expedição</label>
+                    <input type="text" className="w-full px-5 py-4 rounded-2xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-medium text-slate-700" placeholder="Ex: Motorista João - Entrega no período da tarde" value={materialCostForm.notes} onChange={(e) => setMaterialCostForm((prev) => ({ ...prev, notes: e.target.value }))} />
                   </div>
                 </div>
               </div>
 
-              <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
-                <div>
-                  <div className="text-sm text-gray-500">Itens marcados</div>
-                  <div className="text-2xl font-bold text-gray-900">{selectedMaterialRows.length}</div>
+              <div className="bg-slate-900 p-8 rounded-3xl shadow-2xl shadow-slate-900/30 space-y-6 text-white relative overflow-hidden">
+                <div className="absolute top-0 right-0 p-6 opacity-5 -mr-4 -mt-4 rotate-12">
+                   <Package size={120} />
                 </div>
-                <div>
-                  <div className="text-sm text-gray-500">Total do lancamento</div>
-                  <div className="text-2xl font-bold text-gray-900">{formatMoney(selectedMaterialTotal)}</div>
+                <div className="relative z-10">
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest block mb-4">Sumário do Lançamento</span>
+                  <div className="space-y-4">
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Itens Marcados</div>
+                      <div className="text-3xl font-black">{selectedMaterialRows.length}</div>
+                    </div>
+                    <div>
+                      <div className="text-[10px] font-bold text-slate-400 uppercase mb-1">Custo Estimado</div>
+                      <div className="text-3xl font-black text-blue-400 tracking-tighter">{formatMoney(selectedMaterialTotal)}</div>
+                    </div>
+                  </div>
                 </div>
-                <p className="text-xs text-gray-500">Todos os materiais cadastrados aparecem aqui, com ou sem saldo no estoque.</p>
               </div>
             </div>
 
-            {shortageRows.length > 0 && <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">Alguns itens selecionados nao tem saldo suficiente em estoque. O lancamento sera salvo mesmo assim, apenas com aviso.</div>}
+            {shortageRows.length > 0 && (
+              <div className="rounded-2xl border border-rose-100 bg-rose-50/50 px-6 py-4 flex items-center gap-4 text-rose-700 animate-pulse">
+                <AlertTriangle size={24} className="text-rose-500" />
+                <span className="text-xs font-black uppercase tracking-widest">Atenção: {shortageRows.length} item(ns) estão com saldo insuficiente no estoque.</span>
+              </div>
+            )}
 
-            <div className="bg-white border border-gray-200 rounded-xl overflow-hidden flex-1 min-h-0">
-              <div className="grid grid-cols-[80px_minmax(240px,2fr)_140px_160px_140px_140px] gap-4 px-4 py-3 bg-gray-50 border-b border-gray-200 text-xs font-semibold uppercase tracking-wide text-gray-500">
-                <span>Marcar</span>
-                <span>Material</span>
-                <span>Custo</span>
-                <span>Estoque</span>
+            <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/20 border border-slate-100 overflow-hidden flex-1 flex flex-col min-h-0">
+              <div className="grid grid-cols-[100px_minmax(280px,2fr)_140px_160px_140px_140px] gap-6 px-8 py-5 bg-slate-50/80 border-b border-slate-100 text-[10px] font-black uppercase tracking-[0.15em] text-slate-400">
+                <span>Seleção</span>
+                <span>Material & Especificações</span>
+                <span>Custo Unitário</span>
+                <span>Status Estoque</span>
                 <span>Quantidade</span>
-                <span>Subtotal</span>
+                <span className="text-right">Subtotal</span>
               </div>
 
-              <div className="divide-y divide-gray-100 overflow-y-auto h-full">
+              <div className="divide-y divide-slate-50 overflow-y-auto flex-1 custom-scrollbar">
                 {inventoryLoading ? (
-                  <div className="py-16 text-center text-gray-500"><Loader className="animate-spin mx-auto mb-3" size={24} />Carregando materiais...</div>
+                  <div className="py-32 text-center text-slate-400 flex flex-col items-center">
+                    <RefreshCcw className="animate-spin mb-4 text-blue-500" size={32} />
+                    <span className="font-black uppercase tracking-widest text-xs">Consultando Almoxarifado...</span>
+                  </div>
                 ) : materialRows.length === 0 ? (
-                  <div className="py-16 text-center text-gray-500">Nenhum material cadastrado no estoque.</div>
+                  <div className="py-32 text-center text-slate-400 font-bold italic">Nenhum material disponível no catálogo.</div>
                 ) : (
                   materialRows.map((row) => (
-                    <div key={row.material.id} className={`grid grid-cols-[80px_minmax(240px,2fr)_140px_160px_140px_140px] gap-4 px-4 py-4 items-start ${row.selected ? 'bg-blue-50/40' : 'bg-white'}`}>
-                      <label className="flex items-center gap-2 pt-2">
-                        <input type="checkbox" className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500" checked={row.selected} onChange={(e) => setMaterialCostForm((prev) => ({ ...prev, selections: { ...prev.selections, [row.material.id]: { selected: e.target.checked, quantity: e.target.checked ? prev.selections[row.material.id]?.quantity || '' : '' } } }))} />
-                        <span className="text-sm text-gray-600">Item</span>
+                    <div key={row.material.id} className={`grid grid-cols-[100px_minmax(280px,2fr)_140px_160px_140px_140px] gap-6 px-8 py-6 items-center transition-all ${row.selected ? 'bg-blue-50/30 ring-1 ring-inset ring-blue-100/50' : 'hover:bg-slate-50/50'}`}>
+                      <label className="flex items-center justify-center">
+                        <input 
+                          type="checkbox" 
+                          className="h-6 w-6 rounded-lg border-slate-200 text-blue-600 focus:ring-blue-500 transition-all cursor-pointer" 
+                          checked={row.selected} 
+                          onChange={(e) => setMaterialCostForm((prev) => ({ 
+                            ...prev, 
+                            selections: { 
+                              ...prev.selections, 
+                              [row.material.id]: { 
+                                selected: e.target.checked, 
+                                quantity: e.target.checked ? prev.selections[row.material.id]?.quantity || '' : '' 
+                              } 
+                            } 
+                          }))} 
+                        />
                       </label>
 
-                      <div>
-                        <div className="font-medium text-gray-900">{row.material.name}</div>
-                        <div className="text-xs text-gray-500">Unidade: {row.material.unit}{row.material.supplier ? ` | Fornecedor: ${row.material.supplier}` : ''}</div>
-                        {row.selected && row.missingQuantity > 0 && <div className="text-xs text-amber-700 mt-1">Faltam {formatQuantity(row.missingQuantity)} {row.material.unit} no estoque para esse item.</div>}
-                      </div>
-
-                      <div className="pt-2 font-medium text-gray-900">{formatMoney(row.material.price_cost)}</div>
-
-                      <div className="pt-2">
-                        {row.availableQuantity > 0 ? (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-700 border border-emerald-200">Saldo: {formatQuantity(row.availableQuantity)} {row.material.unit}</span>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200">Sem saldo</span>
+                      <div className="space-y-1">
+                        <div className="font-extrabold text-slate-900 tracking-tight">{row.material.name}</div>
+                        <div className="flex gap-3 text-[10px] font-bold uppercase tracking-wider text-slate-400 italic">
+                          <span>Unid: {row.material.unit}</span>
+                          {row.material.supplier && (
+                            <>
+                              <span className="text-slate-200">|</span>
+                              <span>Fornecedor: {row.material.supplier}</span>
+                            </>
+                          )}
+                        </div>
+                        {row.selected && row.missingQuantity > 0 && (
+                          <div className="text-[10px] font-black text-rose-500 mt-2 flex items-center gap-1">
+                            <AlertTriangle size={12} /> DÉFICIT: {formatQuantity(row.missingQuantity)} {row.material.unit}
+                          </div>
                         )}
                       </div>
 
-                      <div>
-                        <input type="number" min="0" step="0.001" className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white disabled:bg-gray-100" value={row.quantityValue} disabled={!row.selected} onChange={(e) => setMaterialCostForm((prev) => ({ ...prev, selections: { ...prev.selections, [row.material.id]: { selected: true, quantity: e.target.value } } }))} />
+                      <div className="font-bold text-slate-900">{formatMoney(row.material.price_cost)}</div>
+
+                      <div className="flex flex-col gap-1">
+                        {row.availableQuantity > 0 ? (
+                          <span className={`inline-flex items-center px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter w-fit border ${row.availableQuantity < 10 ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100'}`}>
+                            Saldo: {formatQuantity(row.availableQuantity)}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-tighter w-fit bg-slate-100 text-slate-400 border border-slate-200">Esgotado</span>
+                        )}
                       </div>
 
-                      <div className="pt-2 font-semibold text-gray-900">{formatMoney(row.subtotal)}</div>
+                      <div className="relative">
+                        <input 
+                          type="number" 
+                          min="0" 
+                          step="0.001" 
+                          className="w-full px-4 py-3 rounded-xl border border-slate-200 bg-white disabled:bg-slate-50/50 disabled:text-slate-300 font-bold text-slate-900 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all placeholder:font-normal" 
+                          placeholder="0.00"
+                          value={row.quantityValue} 
+                          disabled={!row.selected} 
+                          onChange={(e) => setMaterialCostForm((prev) => ({ 
+                            ...prev, 
+                            selections: { 
+                              ...prev.selections, 
+                              [row.material.id]: { selected: true, quantity: e.target.value } 
+                            } 
+                          }))} 
+                        />
+                      </div>
+
+                      <div className="font-black text-slate-900 text-right tracking-tighter">{formatMoney(row.subtotal)}</div>
                     </div>
                   ))
                 )}
               </div>
             </div>
 
-            <div className="border-t border-gray-200 pt-4 flex flex-col sm:flex-row justify-between gap-3">
-              <div className="text-sm text-gray-600">{shortageRows.length > 0 ? `${shortageRows.length} item(ns) ficarao com aviso de compra fora do estoque.` : 'Somente o saldo disponivel sera baixado automaticamente do estoque.'}</div>
-              <div className="flex justify-end gap-3">
-                <button type="button" onClick={closeCostModal} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium" disabled={savingCost}>Cancelar</button>
-                <button type="submit" disabled={savingCost || inventoryLoading} className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-70 inline-flex items-center">
-                  {savingCost ? <Loader size={16} className="animate-spin mr-2" /> : <Save size={16} className="mr-2" />}
-                  Salvar lancamento
+            <div className="border-t border-slate-100 pt-8 flex flex-col sm:flex-row justify-between items-center gap-6 px-2">
+              <div className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 max-w-md leading-relaxed">
+                {shortageRows.length > 0 ? (
+                  <span className="text-rose-400">Atenção: A confirmação irá gerar pendências de estoque para itens em falta.</span>
+                ) : (
+                  "Os itens selecionados serão baixados automaticamente do inventário após a confirmação."
+                )}
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                <button type="button" onClick={closeCostModal} className="px-8 py-4 text-slate-500 hover:bg-slate-100 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all" disabled={savingCost}>
+                  Cancelar
+                </button>
+                <button type="submit" disabled={savingCost || inventoryLoading} className="px-12 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-600/30 hover:bg-blue-700 hover:-translate-y-1 active:translate-y-0 transition-all inline-flex items-center justify-center min-w-[220px]">
+                  {savingCost ? <RefreshCcw size={16} className="animate-spin mr-3" /> : <Save size={16} className="mr-3" />}
+                  Confirmar Lançamentos
                 </button>
               </div>
             </div>
           </form>
         ) : activeCostType ? (
-          <form onSubmit={saveGenericCost} className="h-full flex flex-col gap-6">
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-              <div className="xl:col-span-2 space-y-6">
-                <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4 shadow-sm">
-                  <h3 className="font-semibold text-gray-900 border-b border-gray-100 pb-2">Informacoes Basicas</h3>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Descricao do Lancamento</label>
-                    <input type="text" required className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:ring-2 focus:ring-blue-500 outline-none" placeholder={`Ex: ${activeCostType === 'LABOR' ? 'Montagem de Sanca' : 'Deslocamento ate a obra'}`} value={genericCostForm.description} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, description: e.target.value }))} />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <form onSubmit={saveGenericCost} className="h-full flex flex-col gap-8">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+              <div className="xl:col-span-2 space-y-8">
+                <div className="bg-white p-8 rounded-3xl shadow-xl shadow-slate-200/30 border border-slate-100 space-y-6">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 pb-4">Detalhamento do Registro</h4>
+                  
+                  <div className="space-y-6">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Valor Total (R$)</label>
-                      <input type="number" required min="0" step="0.01" className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white font-semibold text-blue-700" value={genericCostForm.amount} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, amount: e.target.value }))} />
+                      <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Descrição do Lançamento</label>
+                      <input 
+                        type="text" 
+                        required
+                        className="w-full px-5 py-4 rounded-2xl border border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-medium text-slate-700 placeholder:text-slate-400" 
+                        placeholder={`Descreva aqui o lançamento de ${costTypeLabel[activeCostType].toLowerCase()}...`} 
+                        value={genericCostForm.description} 
+                        onChange={(e) => setGenericCostForm((prev) => ({ ...prev, description: e.target.value }))} 
+                      />
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Data</label>
-                      <input type="date" required className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" value={genericCostForm.date} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, date: e.target.value }))} />
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Valor do Gasto (R$)</label>
+                        <div className="relative">
+                           <DollarSign size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                           <input 
+                             type="number" 
+                             min="0" 
+                             step="0.01" 
+                             required
+                             className="w-full pl-11 pr-4 py-4 rounded-2xl border border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-bold text-slate-900" 
+                             value={genericCostForm.amount} 
+                             onChange={(e) => setGenericCostForm((prev) => ({ ...prev, amount: e.target.value }))} 
+                           />
+                        </div>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Data da Ocorrência</label>
+                        <div className="relative">
+                           <Calendar size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                           <input 
+                             type="date" 
+                             required
+                             className="w-full pl-11 pr-4 py-4 rounded-2xl border border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-bold text-slate-900" 
+                             value={genericCostForm.date} 
+                             onChange={(e) => setGenericCostForm((prev) => ({ ...prev, date: e.target.value }))} 
+                           />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
 
                 {activeCostType === 'LABOR' && (
-                  <div className="bg-blue-50/50 border border-blue-100 rounded-xl p-6 space-y-4 shadow-sm transition-all animate-in fade-in slide-in-from-top-2">
-                    <h3 className="font-semibold text-blue-900 border-b border-blue-100 pb-2 flex items-center">
-                      <Users size={18} className="mr-2" /> Detalhamento de Mao de Obra
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="col-span-1 md:col-span-2">
-                        <label className="block text-sm font-medium text-blue-800 mb-1">Nome do Montador</label>
+                  <div className="bg-blue-50/50 p-8 rounded-3xl border border-blue-100 space-y-6 transition-all animate-in fade-in slide-in-from-top-2">
+                    <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest border-b border-blue-100/50 pb-4 flex items-center">
+                      <Users size={16} className="mr-2" /> Detalhamento de Mão de Obra
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="md:col-span-2">
+                        <label className="block text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 ml-1">Nome do Montador/Profissional</label>
                         <input
                           type="text"
                           required
-                          className="w-full px-3 py-2 border border-blue-200 rounded-lg bg-white"
-                          placeholder="Ex: Gesiel Gesseiro"
+                          className="w-full px-5 py-4 rounded-2xl border border-blue-200 bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-medium text-slate-700"
+                          placeholder="Ex: João Gesseiro"
                           value={genericCostForm.worker_name}
                           onChange={(e) => setGenericCostForm((prev) => ({ ...prev, worker_name: e.target.value }))}
                         />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-blue-800 mb-1">Valor da Diaria (R$)</label>
-                        <input type="number" min="0" step="0.01" className="w-full px-3 py-2 border border-blue-200 rounded-lg bg-white" placeholder="0,00" value={genericCostForm.labor_daily_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, labor_daily_value: e.target.value }))} />
+                        <label className="block text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3 ml-1">Valor Diária (R$)</label>
+                        <input type="number" min="0" step="0.01" className="w-full px-5 py-4 rounded-2xl border border-blue-100 bg-white font-bold text-slate-800" placeholder="0.00" value={genericCostForm.labor_daily_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, labor_daily_value: e.target.value }))} />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-blue-800 mb-1">Valor Alimento / Lanche (R$)</label>
-                        <input type="number" min="0" step="0.01" className="w-full px-3 py-2 border border-blue-200 rounded-lg bg-white" placeholder="0,00" value={genericCostForm.labor_snack_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, labor_snack_value: e.target.value }))} />
+                        <label className="block text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3 ml-1">Alimentação (R$)</label>
+                        <input type="number" min="0" step="0.01" className="w-full px-5 py-4 rounded-2xl border border-blue-100 bg-white font-bold text-slate-800" placeholder="0.00" value={genericCostForm.labor_snack_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, labor_snack_value: e.target.value }))} />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-blue-800 mb-1">Passagem / Transporte (R$)</label>
-                        <input type="number" min="0" step="0.01" className="w-full px-3 py-2 border border-blue-200 rounded-lg bg-white" placeholder="0,00" value={genericCostForm.labor_transport_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, labor_transport_value: e.target.value }))} />
+                        <label className="block text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3 ml-1">Transporte (R$)</label>
+                        <input type="number" min="0" step="0.01" className="w-full px-5 py-4 rounded-2xl border border-blue-100 bg-white font-bold text-slate-800" placeholder="0.00" value={genericCostForm.labor_transport_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, labor_transport_value: e.target.value }))} />
                       </div>
                       <div className="flex items-end">
                         <button
                           type="button"
-                          className="w-full px-3 py-2 bg-blue-100 text-blue-700 rounded-lg font-semibold hover:bg-blue-200 transition text-sm"
+                          className="w-full px-6 py-4 bg-blue-100 text-blue-700 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-200 transition-all"
                           onClick={() => {
                             const total = toNumber(genericCostForm.labor_daily_value) + toNumber(genericCostForm.labor_snack_value) + toNumber(genericCostForm.labor_transport_value);
                             if (total > 0) setGenericCostForm(prev => ({ ...prev, amount: total.toString() }));
                           }}
                         >
-                          Somar ao Valor Total
+                          Somar ao Total
                         </button>
                       </div>
                     </div>
@@ -1054,74 +1292,90 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
                 )}
 
                 {activeCostType === 'VEHICLE' && (
-                  <div className="bg-orange-50/50 border border-orange-100 rounded-xl p-6 space-y-4 shadow-sm transition-all animate-in fade-in slide-in-from-top-2">
-                    <h3 className="font-semibold text-orange-900 border-b border-orange-100 pb-2 flex items-center">
-                      <Truck size={18} className="mr-2" /> Detalhamento de Veiculo
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="col-span-1 md:col-span-2">
-                        <label className="block text-sm font-medium text-orange-800 mb-1">Veiculo</label>
-                        <select className="w-full px-3 py-2 border border-orange-200 rounded-lg bg-white" value={genericCostForm.vehicle_id} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, vehicle_id: e.target.value }))}>
-                          <option value="">Selecione um veiculo (opcional)</option>
+                  <div className="bg-amber-50/50 p-8 rounded-3xl border border-amber-100 space-y-6 transition-all animate-in fade-in slide-in-from-top-2">
+                    <h4 className="text-[10px] font-black text-amber-500 uppercase tracking-widest border-b border-amber-100/50 pb-4 flex items-center">
+                      <Truck size={16} className="mr-2" /> Logística & Veículo
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="md:col-span-2">
+                        <label className="block text-[10px] font-black text-amber-600 uppercase tracking-widest mb-3 ml-1">Veículo Utilizado</label>
+                        <select className="w-full px-5 py-4 rounded-2xl border border-amber-200 bg-white focus:ring-2 focus:ring-amber-500/20 outline-none transition-all font-bold text-slate-800 cursor-pointer" value={genericCostForm.vehicle_id} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, vehicle_id: e.target.value }))}>
+                          <option value="">Selecione um veículo (opcional)</option>
                           {vehicles.map(v => <option key={v.id} value={v.id}>{v.model} - {v.plate}</option>)}
                         </select>
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-orange-800 mb-1">Combustivel (R$)</label>
-                        <input type="number" min="0" step="0.01" className="w-full px-3 py-2 border border-orange-200 rounded-lg bg-white" placeholder="0,00" value={genericCostForm.vehicle_fuel_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, vehicle_fuel_value: e.target.value }))} />
+                        <label className="block text-[10px] font-black text-amber-400 uppercase tracking-widest mb-3 ml-1">Combustível (R$)</label>
+                        <input type="number" min="0" step="0.01" className="w-full px-5 py-4 rounded-2xl border border-amber-100 bg-white font-bold text-slate-800" placeholder="0.00" value={genericCostForm.vehicle_fuel_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, vehicle_fuel_value: e.target.value }))} />
                       </div>
                       <div>
-                        <label className="block text-sm font-medium text-orange-800 mb-1">Pedagio (R$)</label>
-                        <input type="number" min="0" step="0.01" className="w-full px-3 py-2 border border-orange-200 rounded-lg bg-white" placeholder="0,00" value={genericCostForm.vehicle_toll_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, vehicle_toll_value: e.target.value }))} />
+                        <label className="block text-[10px] font-black text-amber-400 uppercase tracking-widest mb-3 ml-1">Pedágio/Outros (R$)</label>
+                        <input type="number" min="0" step="0.01" className="w-full px-5 py-4 rounded-2xl border border-amber-100 bg-white font-bold text-slate-800" placeholder="0.00" value={genericCostForm.vehicle_toll_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, vehicle_toll_value: e.target.value }))} />
                       </div>
-                      <div>
-                        <label className="block text-sm font-medium text-orange-800 mb-1">Manutencao/Outros (R$)</label>
-                        <input type="number" min="0" step="0.01" className="w-full px-3 py-2 border border-orange-200 rounded-lg bg-white" placeholder="0,00" value={genericCostForm.vehicle_maintenance_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, vehicle_maintenance_value: e.target.value }))} />
-                      </div>
-                      <div className="flex items-end">
-                        <button
+                      <div className="md:col-span-2">
+                         <button
                           type="button"
-                          className="w-full px-3 py-2 bg-orange-100 text-orange-700 rounded-lg font-semibold hover:bg-orange-200 transition text-sm"
+                          className="w-full px-6 py-4 bg-amber-100 text-amber-700 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-amber-200 transition-all"
                           onClick={() => {
-                            const total = toNumber(genericCostForm.vehicle_fuel_value) + toNumber(genericCostForm.vehicle_toll_value) + toNumber(genericCostForm.vehicle_maintenance_value);
+                            const total = toNumber(genericCostForm.vehicle_fuel_value) + toNumber(genericCostForm.vehicle_toll_value);
                             if (total > 0) setGenericCostForm(prev => ({ ...prev, amount: total.toString() }));
                           }}
                         >
-                          Somar ao Valor Total
+                          Somar ao Total Financeiro
                         </button>
                       </div>
                     </div>
                   </div>
                 )}
 
-                <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4 shadow-sm">
-                  <h3 className="font-semibold text-gray-900 border-b border-gray-100 pb-2">Observacoes</h3>
-                  <textarea rows={4} className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white resize-y focus:ring-2 focus:ring-blue-500 outline-none" placeholder="Relate detalhes adicionais sobre esse custo..." value={genericCostForm.notes} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, notes: e.target.value }))} />
+                <div className="bg-white p-8 rounded-3xl shadow-xl shadow-slate-200/30 border border-slate-100">
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 ml-1">Observações Adicionais</label>
+                  <textarea 
+                    rows={4} 
+                    className="w-full px-5 py-4 rounded-2xl border border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-medium text-slate-700 resize-none" 
+                    placeholder="Informações extras (opcional)..." 
+                    value={genericCostForm.notes} 
+                    onChange={(e) => setGenericCostForm((prev) => ({ ...prev, notes: e.target.value }))} 
+                  />
                 </div>
               </div>
 
               <div className="space-y-6">
-                <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-4 shadow-sm">
-                  <div className="text-sm text-gray-500 uppercase font-bold tracking-wider">Tipo de lancamento</div>
-                  <div className={`text-2xl font-black ${activeCostType === 'LABOR' ? 'text-blue-600' : 'text-orange-600'}`}>{costTypeLabel[activeCostType]}</div>
-                  <div className="p-4 bg-gray-50 rounded-lg border border-gray-100 italic text-sm text-gray-600">
-                    "{activeCostType === 'LABOR' ? 'Use esse espaco para cadastrar diarias de montadores, ajudantes e gastos com alimentacao no local.' : 'Cadastre aqui gastos com combustivel e pedagios relativos ao transporte para essa obra.'}"
+                <div className="premium-card p-8 bg-gradient-to-br from-blue-600 to-indigo-700 text-white border-none shadow-2xl shadow-blue-600/20 overflow-hidden relative">
+                  <div className="absolute top-0 right-0 p-8 opacity-10 rotate-12 -mr-4 -mt-4">
+                     {activeCostType === 'LABOR' ? <Users size={120} /> : <Truck size={120} />}
+                  </div>
+                  <div className="relative z-10">
+                    <span className="text-[10px] font-black text-blue-100 uppercase tracking-[0.2em] block mb-4">Classificação</span>
+                    <h3 className="text-3xl font-black tracking-tighter mb-4">{costTypeLabel[activeCostType]}</h3>
+                    <p className="text-sm text-blue-100/80 leading-relaxed font-medium">Este lançamento será consolidado nos custos operacionais da obra {(selectedProject as Project).title}.</p>
                   </div>
                 </div>
 
-                <div className="bg-blue-600 rounded-xl p-6 text-white shadow-lg space-y-2">
-                  <div className="text-xs opacity-80 uppercase font-bold">Resumo Financeiro</div>
-                  <div className="text-3xl font-black">{formatMoney(toNumber(genericCostForm.amount))}</div>
-                  <div className="text-xs opacity-80">Lancamento para a obra: <br /><span className="font-bold underline">{selectedProject?.title}</span></div>
+                <div className="p-8 rounded-3xl bg-slate-100/50 border border-slate-200 border-dashed">
+                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-loose">
+                      Verifique os dados antes de salvar. Diferente dos materiais, lançamentos genéricos não afetam o estoque, apenas o fluxo financeiro da obra.
+                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="mt-auto border-t border-gray-200 pt-6 flex justify-end gap-3 bg-white -mx-6 -mb-6 p-6 rounded-b-xl">
-              <button type="button" onClick={closeCostModal} className="px-6 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-bold transition" disabled={savingCost}>Cancelar</button>
-              <button type="submit" disabled={savingCost} className="px-8 py-2 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 disabled:opacity-70 inline-flex items-center shadow-md transition-all active:scale-95">
-                {savingCost ? <Loader size={18} className="animate-spin mr-2" /> : <Save size={18} className="mr-2" />}
-                Confirmar Lancamento
+            <div className="mt-auto border-t border-slate-100 pt-8 flex flex-col sm:flex-row justify-end gap-3 px-2">
+              <button 
+                type="button" 
+                onClick={closeCostModal} 
+                className="px-8 py-4 text-slate-500 hover:bg-slate-100 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all" 
+                disabled={savingCost}
+              >
+                Descartar
+              </button>
+              <button 
+                type="submit" 
+                disabled={savingCost} 
+                className="px-10 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-xl shadow-blue-600/30 hover:bg-blue-700 hover:-translate-y-1 active:translate-y-0 transition-all inline-flex items-center justify-center min-w-[200px]"
+              >
+                {savingCost ? <RefreshCcw size={16} className="animate-spin mr-3" /> : <Save size={16} className="mr-3" />}
+                Confirmar Lançamento
               </button>
             </div>
           </form>
@@ -1344,4 +1598,3 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
 };
 
 export default Projects;
-

@@ -65,7 +65,16 @@ const mapProjectRow = (row: any): Project => ({
   execution_deadline_days: toNumber(row.execution_deadline_days),
   approved_at: row.approved_at ?? undefined,
   total_cost: row.total_cost == null ? undefined : toNumber(row.total_cost),
-  profit_margin: row.profit_margin == null ? undefined : toNumber(row.profit_margin)
+  profit_margin: row.profit_margin == null ? undefined : toNumber(row.profit_margin),
+  
+  // New fields
+  service: row.service ?? '',
+  execution_time: row.execution_time ?? '',
+  material_cost: toNumber(row.material_cost),
+  vehicle_cost: toNumber(row.vehicle_cost),
+  labor_cost: toNumber(row.labor_cost),
+  tax_cost: toNumber(row.tax_cost),
+  invoice_sent: Boolean(row.invoice_sent)
 });
 
 const mapMaterialRow = (row: any): Material => {
@@ -259,7 +268,14 @@ export const api = {
             total_value: toNumber(project.total_value),
             entry_value: toNumber(project.entry_value),
             address: project.address,
-            execution_deadline_days: toNumber(project.execution_deadline_days)
+            execution_deadline_days: toNumber(project.execution_deadline_days),
+            service: project.service || '',
+            execution_time: project.execution_time || '',
+            material_cost: toNumber(project.material_cost),
+            vehicle_cost: toNumber(project.vehicle_cost),
+            labor_cost: toNumber(project.labor_cost),
+            tax_cost: toNumber(project.tax_cost),
+            invoice_sent: project.invoice_sent || false,
           })
           .select('*')
           .single();
@@ -295,7 +311,14 @@ export const api = {
             entry_value: toNumber(updatedProject.entry_value),
             address: updatedProject.address,
             execution_deadline_days: toNumber(updatedProject.execution_deadline_days),
-            approved_at: updatedProject.approved_at || null
+            approved_at: updatedProject.approved_at || null,
+            service: updatedProject.service || '',
+            execution_time: updatedProject.execution_time || '',
+            material_cost: toNumber(updatedProject.material_cost),
+            vehicle_cost: toNumber(updatedProject.vehicle_cost),
+            labor_cost: toNumber(updatedProject.labor_cost),
+            tax_cost: toNumber(updatedProject.tax_cost),
+            invoice_sent: updatedProject.invoice_sent || false,
           })
           .eq('id', updatedProject.id);
 
@@ -736,6 +759,21 @@ export const api = {
       () => mockApi.updateTransaction(updatedTx)
     ),
 
+  deleteTransaction: async (id: string) =>
+    run(
+      async () => {
+        const client = requireSupabase();
+        const { error } = await client.from('transactions').delete().eq('id', id);
+        if (error) throw error;
+        return true;
+      },
+      async () => {
+        // Implementação mock simples se necessário
+        return true;
+      }
+    ),
+
+
   addTransactionSettlement: async (transactionId: string, amount: number, settlementDate: string) =>
     run(
       async () => {
@@ -929,6 +967,31 @@ export const api = {
         return mapVehicleRow(data);
       },
       () => mockApi.addVehicle(vehicle)
+    ),
+
+  updateVehicle: async (updatedVehicle: Vehicle) =>
+    run(
+      async () => {
+        const client = requireSupabase();
+        const { data, error } = await client
+          .from('vehicles')
+          .update({
+            model: updatedVehicle.model,
+            plate: updatedVehicle.plate,
+            current_km: toNumber(updatedVehicle.current_km),
+            last_maintenance: updatedVehicle.last_maintenance ?? null,
+            status: updatedVehicle.status
+          })
+          .eq('id', updatedVehicle.id)
+          .select('*')
+          .single();
+
+        if (error) throw error;
+        return mapVehicleRow(data);
+      },
+      async () => {
+        return updatedVehicle;
+      }
     ),
 
   deleteVehicle: async (id: string) =>

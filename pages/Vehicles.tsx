@@ -63,7 +63,6 @@ const Vehicles: React.FC = () => {
       setLoadingExpenses(true);
       setIsExpenseModalOpen(true);
       
-      // Fetch all transactions and filter by vehicle_id
       const allTx = await api.getTransactions();
       const vehicleTx = allTx.filter(t => t.vehicle_id === vehicle.id);
       setVehicleTransactions(vehicleTx);
@@ -86,12 +85,10 @@ const Vehicles: React.FC = () => {
 
       await api.addTransaction(tx);
       
-      // Refresh list
       const allTx = await api.getTransactions();
       const vehicleTx = allTx.filter(t => t.vehicle_id === selectedVehicle.id);
       setVehicleTransactions(vehicleTx);
       
-      // Reset form
       setNewExpense({
           description: '',
           amount: 0,
@@ -103,186 +100,197 @@ const Vehicles: React.FC = () => {
   const totalExpenses = vehicleTransactions.reduce((acc, curr) => acc + curr.amount, 0);
 
   return (
-    <div className="space-y-6">
-       <div className="flex justify-between items-center">
+    <div className="space-y-8 animate-in fade-in duration-700">
+       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Frota de Veículos</h1>
-          <p className="text-gray-500 text-sm">Controle de quilometragem e manutenção.</p>
+          <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">Frota Operacional</h1>
+          <p className="text-slate-500 mt-1 font-medium italic">Gestão de logística, manutenção e custos de rodagem.</p>
         </div>
         <button 
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition"
+            className="bg-slate-900 text-white px-8 py-4 rounded-2xl text-[11px] font-black uppercase tracking-widest hover:bg-black shadow-xl shadow-slate-900/20 transition-all hover:-translate-y-1 active:translate-y-0 flex items-center justify-center w-full sm:w-auto"
         >
-          <Plus size={18} className="mr-2" />
-          Adicionar Veículo
+          <Plus size={16} className="mr-2" />
+          Adicionar Unidade
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8">
          {loading ? (
-             <div className="col-span-full flex justify-center py-10"><Loader className="animate-spin text-gray-400"/></div>
+             <div className="col-span-full flex justify-center py-20"><Loader className="animate-spin text-blue-500" size={48}/></div>
+         ) : vehicles.length === 0 ? (
+             <div className="col-span-full text-center py-24 text-slate-400 italic font-medium bg-white rounded-[32px] border border-slate-100 shadow-sm">
+                 <Truck size={64} className="mx-auto text-slate-200 mb-4" />
+                 <p className="text-lg">Nenhum veículo cadastrado na frota.</p>
+             </div>
          ) : vehicles.map(v => (
-             <div key={v.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden group">
-                 <div className="p-6">
-                    <div className="flex justify-between items-start mb-4">
-                        <div className="p-3 bg-blue-50 text-blue-600 rounded-lg">
-                            <Truck size={24} />
+             <div key={v.id} className="premium-card overflow-hidden group">
+                 <div className="p-8">
+                    <div className="flex justify-between items-start mb-6">
+                        <div className="p-4 bg-slate-900 text-white rounded-[20px] shadow-lg shadow-slate-900/20 group-hover:scale-110 transition-transform duration-500">
+                            <Truck size={28} />
                         </div>
-                        <div className={`px-2 py-1 rounded text-xs font-bold ${v.status === 'Ativo' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+                        <div className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest shadow-sm border ${v.status === 'Ativo' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-amber-50 text-amber-600 border-amber-100'}`}>
                             {v.status}
                         </div>
                     </div>
-                    <h3 className="text-lg font-bold text-gray-800">{v.model}</h3>
-                    <p className="text-sm text-gray-500 font-mono mb-6 uppercase">{v.plate}</p>
+                    <h3 className="text-xl font-black text-slate-800 uppercase tracking-tight group-hover:text-blue-600 transition-colors">{v.model}</h3>
+                    <p className="text-xs text-slate-400 font-bold tracking-[0.2em] mb-8 mt-1 uppercase border-b border-slate-50 pb-4">{v.plate}</p>
                     
-                    <div className="space-y-3">
-                        <div className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
-                            <span className="text-gray-500 flex items-center"><Activity size={14} className="mr-2"/> KM Atual</span>
-                            <span className="font-bold text-gray-800">{v.current_km.toLocaleString()} km</span>
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-center py-1">
+                            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center"><Activity size={14} className="mr-2 text-blue-500"/> Kilometragem</span>
+                            <span className="text-base font-black text-slate-900 tracking-tighter">{v.current_km.toLocaleString()} KM</span>
                         </div>
-                        <div className="flex justify-between items-center text-sm border-b border-gray-100 pb-2">
-                             <span className="text-gray-500 flex items-center"><Calendar size={14} className="mr-2"/> Últ. Manutenção</span>
-                             <span className="font-medium text-gray-800">{v.last_maintenance ? new Date(v.last_maintenance).toLocaleDateString('pt-BR') : '-'}</span>
+                        <div className="flex justify-between items-center py-1">
+                             <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center"><Calendar size={14} className="mr-2 text-amber-500"/> Manutenção</span>
+                             <span className="text-xs font-bold text-slate-700">{v.last_maintenance ? new Date(v.last_maintenance).toLocaleDateString('pt-BR') : 'PENDENTE'}</span>
                         </div>
                     </div>
                  </div>
-                 <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex justify-between gap-2">
+                 <div className="bg-slate-50/50 p-4 border-t border-slate-100 flex justify-between gap-3 backdrop-blur-sm">
                      <button 
                         onClick={() => handleOpenExpenses(v)}
-                        className="flex-1 text-xs font-bold text-gray-700 hover:text-blue-600 hover:bg-blue-50 py-2 rounded transition flex items-center justify-center border border-gray-200 bg-white"
+                        className="flex-1 bg-white border border-slate-200 hover:border-blue-300 hover:text-blue-600 text-slate-600 py-3 rounded-xl transition-all active:scale-95 flex items-center justify-center text-[10px] font-black uppercase tracking-widest shadow-sm"
                      >
-                        <DollarSign size={14} className="mr-1" /> DESPESAS
+                        <DollarSign size={14} className="mr-1.5" /> Despesas
                      </button>
-                     {/* Placeholder for future features */}
-                     <button className="flex-1 text-xs font-bold text-gray-700 hover:text-blue-600 hover:bg-blue-50 py-2 rounded transition flex items-center justify-center border border-gray-200 bg-white">
-                        <PenTool size={14} className="mr-1" /> USO
+                     <button className="flex-1 bg-white border border-slate-200 hover:border-slate-800 hover:text-slate-900 text-slate-600 py-3 rounded-xl transition-all active:scale-95 flex items-center justify-center text-[10px] font-black uppercase tracking-widest shadow-sm">
+                        <PenTool size={14} className="mr-1.5" /> Logs
                      </button>
-                     <button onClick={() => handleDelete(v.id)} className="px-3 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition border border-transparent">
-                        <Trash2 size={16} />
+                     <button onClick={() => handleDelete(v.id)} className="p-3 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-all">
+                        <Trash2 size={18} />
                      </button>
                  </div>
              </div>
          ))}
       </div>
 
-      {/* New Vehicle Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Novo Veículo">
-        <form onSubmit={handleAddVehicle} className="space-y-4">
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Modelo</label>
-                <input required type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 bg-white text-gray-900"
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Novo Ativo Logístico">
+        <form onSubmit={handleAddVehicle} className="space-y-6 pb-2">
+            <div className="bg-slate-50/50 p-6 rounded-[24px] border border-slate-100">
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Modelo do Veículo</label>
+                <input required type="text" className="w-full px-5 py-4 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 outline-none transition-all bg-white font-bold text-slate-900"
+                    placeholder="Ex: Toyota Hilux SRV"
                     value={newVehicle.model} onChange={e => setNewVehicle({...newVehicle, model: e.target.value})} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Placa</label>
-                    <input required type="text" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 uppercase bg-white text-gray-900"
+            <div className="grid grid-cols-2 gap-6">
+                <div className="bg-slate-50/50 p-6 rounded-[24px] border border-slate-100">
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Placa / Identificação</label>
+                    <input required type="text" className="w-full px-5 py-4 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 outline-none transition-all bg-white font-black text-slate-900 uppercase"
+                        placeholder="ABC-1234"
                         value={newVehicle.plate} onChange={e => setNewVehicle({...newVehicle, plate: e.target.value})} />
                 </div>
-                 <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">KM Atual</label>
-                    <input required type="number" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 bg-white text-gray-900"
+                 <div className="bg-slate-50/50 p-6 rounded-[24px] border border-slate-100">
+                    <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">KM Inicial de Registro</label>
+                    <input required type="number" className="w-full px-5 py-4 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 outline-none transition-all bg-white font-black text-slate-900"
                         value={newVehicle.current_km ?? ''} onChange={e => setNewVehicle({...newVehicle, current_km: parseInt(e.target.value, 10)})} />
                 </div>
             </div>
-            <div>
-                 <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                 <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 bg-white text-gray-900"
+            <div className="bg-slate-50/50 p-6 rounded-[24px] border border-slate-100">
+                 <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2 px-1">Status Operacional</label>
+                 <select className="w-full px-5 py-4 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-blue-500/10 outline-none transition-all bg-white font-bold text-slate-900 cursor-pointer"
                     value={newVehicle.status} onChange={e => setNewVehicle({...newVehicle, status: e.target.value as any})}
                  >
-                     <option value="Ativo">Ativo</option>
-                     <option value="Manutenção">Manutenção</option>
+                     <option value="Ativo">Operação Normal (Ativo)</option>
+                     <option value="Manutenção">Em Manutenção / Reparo</option>
                  </select>
             </div>
-            <div className="pt-4 flex justify-end gap-3">
-             <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg font-medium">Cancelar</button>
-             <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700">Salvar Veículo</button>
+            <div className="pt-6 flex flex-col sm:flex-row justify-end gap-3">
+             <button type="button" onClick={() => setIsModalOpen(false)} className="px-8 py-4 text-slate-500 hover:bg-slate-100 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all">Descartar</button>
+             <button type="submit" className="px-10 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-black shadow-xl shadow-slate-900/30 hover:-translate-y-1 active:translate-y-0 transition-all flex items-center justify-center min-w-[200px]">Incorporar Veículo</button>
           </div>
         </form>
       </Modal>
 
-      {/* Expenses Modal */}
-      <Modal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} title="Controle de Despesas" maxWidth="max-w-2xl">
+      <Modal isOpen={isExpenseModalOpen} onClose={() => setIsExpenseModalOpen(false)} title="Centro de Custos Logísticos" maxWidth="max-w-3xl">
          {selectedVehicle && (
-             <div className="flex flex-col h-full">
-                 <div className="mb-6 bg-blue-50 p-4 rounded-lg border border-blue-100 flex items-center justify-between">
-                     <div>
-                        <h4 className="font-bold text-blue-900 text-lg">{selectedVehicle.model}</h4>
-                        <p className="text-blue-700 font-mono text-sm uppercase">{selectedVehicle.plate}</p>
+             <div className="flex flex-col h-full space-y-8">
+                 <div className="bg-slate-900 p-8 rounded-[28px] border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl shadow-slate-900/40 relative overflow-hidden">
+                     <div className="absolute top-0 left-0 w-full h-full opacity-5 pointer-events-none">
+                        <Truck size={200} className="absolute -top-10 -left-10 text-white rotate-12" />
                      </div>
-                     <div className="text-right">
-                         <p className="text-xs text-blue-600 font-medium uppercase">Total Gasto</p>
-                         <p className="text-2xl font-bold text-blue-800">
+                     <div className="relative z-10">
+                        <h4 className="font-black text-white text-2xl tracking-tight uppercase tracking-widest">{selectedVehicle.model}</h4>
+                        <p className="text-slate-400 font-bold text-sm uppercase tracking-[0.3em] mt-1">{selectedVehicle.plate}</p>
+                     </div>
+                     <div className="text-center md:text-right relative z-10">
+                         <p className="text-[10px] text-slate-500 font-black uppercase tracking-[0.2em] mb-1">Custo Total Acumulado</p>
+                         <p className="text-4xl font-black text-emerald-400 tracking-tighter">
                              {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(totalExpenses)}
                          </p>
                      </div>
                  </div>
 
-                 {/* Add New Expense Form */}
-                 <form onSubmit={handleAddExpense} className="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6">
-                     <h5 className="text-sm font-bold text-gray-700 mb-3 flex items-center">
-                         <Plus size={16} className="mr-1"/> Nova Despesa
+                 <form onSubmit={handleAddExpense} className="bg-slate-50/50 p-8 rounded-[28px] border border-slate-100 space-y-6">
+                     <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-4 flex items-center">
+                         <Plus size={14} className="mr-2 text-blue-500"/> Registrar Novo Desembolso
                      </h5>
-                     <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
-                         <div className="md:col-span-1">
-                             <input type="date" required className="w-full px-3 py-2 text-sm border rounded-md bg-white text-gray-900"
+                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                         <div className="space-y-2">
+                             <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Data da Ocorrência</label>
+                             <input type="date" required className="w-full px-5 py-4 border border-slate-200 rounded-2xl bg-white font-bold text-slate-900 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                                 value={newExpense.date} onChange={e => setNewExpense({...newExpense, date: e.target.value})} />
                          </div>
-                         <div className="md:col-span-1">
-                             <select className="w-full px-3 py-2 text-sm border rounded-md bg-white text-gray-900"
+                         <div className="space-y-2">
+                             <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Categoria de Custo</label>
+                             <select className="w-full px-5 py-4 border border-slate-200 rounded-2xl bg-white font-bold text-slate-900 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all cursor-pointer"
                                 value={newExpense.category} onChange={e => setNewExpense({...newExpense, category: e.target.value})}
                              >
-                                 <option value="Combustível">Combustível</option>
-                                 <option value="Manutenção">Manutenção</option>
-                                 <option value="IPVA/Licenc.">IPVA/Licenc.</option>
-                                 <option value="Seguro">Seguro</option>
-                                 <option value="Outros">Outros</option>
+                                 <option value="Combustível">Abastecimento</option>
+                                 <option value="Manutenção">Manutenção Técnica</option>
+                                 <option value="IPVA/Licenc.">Impostos / Taxas</option>
+                                 <option value="Seguro">Seguro Automotivo</option>
+                                 <option value="Outros">Outras Despesas</option>
                              </select>
                          </div>
-                         <div className="md:col-span-1">
-                             <input type="number" step="0.01" min="0" required placeholder="Valor R$" className="w-full px-3 py-2 text-sm border rounded-md bg-white text-gray-900"
+                         <div className="space-y-2">
+                             <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Valor do Lançamento</label>
+                             <input type="number" step="0.01" min="0" required placeholder="0,00" className="w-full px-5 py-4 border border-slate-200 rounded-2xl bg-white font-black text-slate-900 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                                 value={newExpense.amount || ''} onChange={e => setNewExpense({...newExpense, amount: parseFloat(e.target.value)})} />
                          </div>
-                         <div className="md:col-span-1">
-                             <button type="submit" className="w-full bg-blue-600 text-white py-2 rounded-md text-sm font-medium hover:bg-blue-700">
-                                 Lançar
-                             </button>
-                         </div>
                      </div>
-                     <div className="mt-3">
-                        <input type="text" placeholder="Descrição (Opcional)" className="w-full px-3 py-2 text-sm border rounded-md bg-white text-gray-900"
+                     <div className="space-y-2">
+                        <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest px-1">Descrição / Detalhes (Opcional)</label>
+                        <input type="text" placeholder="Ex: Troca de óleo e filtros de ar" className="w-full px-5 py-4 border border-slate-200 rounded-2xl bg-white font-bold text-slate-900 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
                                 value={newExpense.description} onChange={e => setNewExpense({...newExpense, description: e.target.value})} />
+                     </div>
+                     <div className="flex justify-end pt-2">
+                         <button type="submit" className="w-full md:w-auto px-12 py-4 bg-blue-600 text-white rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-xl shadow-blue-600/20 active:scale-95 transition-all">
+                             Efetivar Lançamento
+                         </button>
                      </div>
                  </form>
 
-                 {/* History Table */}
-                 <div className="flex-1 overflow-hidden flex flex-col">
-                     <h5 className="text-sm font-bold text-gray-700 mb-2">Histórico de Lançamentos</h5>
-                     <div className="overflow-y-auto flex-1 border border-gray-200 rounded-lg">
-                        <table className="w-full text-left text-sm">
-                            <thead className="bg-gray-50 text-gray-500 font-medium text-xs uppercase sticky top-0">
-                                <tr>
-                                    <th className="px-4 py-2">Data</th>
-                                    <th className="px-4 py-2">Categoria</th>
-                                    <th className="px-4 py-2">Descrição</th>
-                                    <th className="px-4 py-2 text-right">Valor</th>
+                 <div className="flex-1 overflow-hidden flex flex-col space-y-4">
+                     <h5 className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center">
+                        <Activity size={14} className="mr-2 text-amber-500"/> Histórico Cronológico
+                     </h5>
+                     <div className="overflow-y-auto flex-1 border border-slate-100 rounded-[28px] bg-white shadow-sm overflow-hidden">
+                        <table className="w-full text-left">
+                            <thead>
+                                <tr className="bg-slate-50/50 text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
+                                    <th className="px-6 py-4">Data</th>
+                                    <th className="px-4 py-4">Categoria</th>
+                                    <th className="px-6 py-4">Observação</th>
+                                    <th className="px-6 py-4 text-right">Montante</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-100">
+                            <tbody className="divide-y divide-slate-50">
                                 {loadingExpenses ? (
-                                    <tr><td colSpan={4} className="text-center py-4"><Loader className="animate-spin mx-auto" size={20}/></td></tr>
+                                    <tr><td colSpan={4} className="text-center py-12"><Loader className="animate-spin mx-auto text-blue-500" size={32}/></td></tr>
                                 ) : vehicleTransactions.length === 0 ? (
-                                    <tr><td colSpan={4} className="text-center py-8 text-gray-400">Nenhuma despesa registrada.</td></tr>
+                                    <tr><td colSpan={4} className="text-center py-12 text-slate-400 italic font-medium">Nenhum custo registrado para este veículo.</td></tr>
                                 ) : vehicleTransactions.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()).map(tx => (
-                                    <tr key={tx.id} className="hover:bg-gray-50">
-                                        <td className="px-4 py-2 text-gray-600">{new Date(tx.date).toLocaleDateString('pt-BR')}</td>
-                                        <td className="px-4 py-2">
-                                            <span className={`text-xs px-2 py-0.5 rounded ${tx.category === 'Combustível' ? 'bg-orange-100 text-orange-800' : 'bg-gray-100 text-gray-700'}`}>
+                                    <tr key={tx.id} className="hover:bg-slate-50/50 transition-colors group">
+                                        <td className="px-6 py-4 text-xs font-bold text-slate-600">{new Date(tx.date).toLocaleDateString('pt-BR')}</td>
+                                        <td className="px-4 py-4">
+                                            <span className={`text-[9px] font-black px-3 py-1 rounded-full uppercase tracking-widest ${tx.category === 'Combustível' ? 'bg-amber-50 text-amber-600 border border-amber-100' : 'bg-slate-100 text-slate-600 border border-slate-200'}`}>
                                                 {tx.category}
                                             </span>
                                         </td>
-                                        <td className="px-4 py-2 text-gray-800">{tx.description}</td>
-                                        <td className="px-4 py-2 text-right font-medium text-red-600">
+                                        <td className="px-6 py-4 text-xs font-medium text-slate-500 truncate max-w-[200px]">{tx.description}</td>
+                                        <td className="px-6 py-4 text-right font-black text-rose-500">
                                             - {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(tx.amount)}
                                         </td>
                                     </tr>
@@ -292,12 +300,12 @@ const Vehicles: React.FC = () => {
                      </div>
                  </div>
 
-                 <div className="flex justify-end pt-4 mt-2">
+                 <div className="flex justify-end pt-4">
                      <button
                         onClick={() => setIsExpenseModalOpen(false)}
-                        className="px-6 py-2 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg font-medium transition"
+                        className="px-10 py-4 bg-slate-100 text-slate-500 hover:bg-slate-200 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all"
                     >
-                        Fechar
+                        Fechar Módulo
                     </button>
                 </div>
              </div>
