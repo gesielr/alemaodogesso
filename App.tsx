@@ -22,10 +22,15 @@ const App: React.FC = () => {
   }, []);
 
   const handleLogin = (phone: string, pass: string) => {
-    // Simulação de autenticação (Pode ser expandido para Supabase Auth)
-    if (phone && pass) {
+    // Credenciais específicas solicitadas pelo usuário
+    const validPhone = '(48) 99635-2987';
+    const validPass = 'resgatados2026';
+
+    if (phone === validPhone && pass === validPass) {
       setIsAuthenticated(true);
       sessionStorage.setItem('alemaodogesso_auth', 'true');
+    } else {
+      window.alert('Telefone ou senha incorretos.');
     }
   };
 
