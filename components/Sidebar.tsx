@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, HardHat, Package, Users, Truck, DollarSign, FileText, X, ChevronDown, ChevronRight, ArrowRight } from 'lucide-react';
+import { LayoutDashboard, HardHat, Package, Users, Truck, DollarSign, FileText, X, ChevronDown, LogOut } from 'lucide-react';
 import brandLogo from '../src/assets/Gemini_Generated_Image_l0vw5al0vw5al0vw23-removebg-preview.png';
 
 interface SidebarProps {
@@ -7,16 +7,17 @@ interface SidebarProps {
   toggleSidebar: () => void;
   activePage: string;
   onNavigate: (page: string) => void;
+  onLogout: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, activePage, onNavigate }) => {
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, activePage, onNavigate, onLogout }) => {
   // State to track expanded menus. Initially, expand finance if active page is related.
   const [expandedMenu, setExpandedMenu] = useState<string | null>(
     activePage.startsWith('finance') ? 'finance' : null
   );
 
   const menuItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'dashboard', label: 'Painel Central', icon: LayoutDashboard },
     { id: 'projects', label: 'Obras', icon: HardHat },
     { id: 'inventory', label: 'Estoque', icon: Package },
     { 
@@ -136,7 +137,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, activePage, on
           })}
         </nav>
 
-        <div className="p-6">
+        <div className="p-6 space-y-4">
           <div className="p-4 rounded-2xl bg-gradient-to-br from-slate-800/80 to-slate-900 border border-white/5 shadow-xl">
             <div className="flex items-center space-x-3">
               <div className="relative">
@@ -147,10 +148,18 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, activePage, on
               </div>
               <div className="overflow-hidden">
                 <p className="text-sm font-semibold text-white truncate">Alemão</p>
-                <p className="text-[11px] text-blue-400 font-medium uppercase tracking-wider">Administrador</p>
+                <p className="text-[11px] text-blue-400 font-bold uppercase tracking-wider">Administrador</p>
               </div>
             </div>
           </div>
+
+          <button 
+            onClick={onLogout}
+            className="w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl border border-white/10 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20 transition-all duration-300 font-bold text-xs uppercase tracking-widest group"
+          >
+            <LogOut size={16} className="group-hover:-translate-x-1 transition-transform" />
+            Encerrar Sessão
+          </button>
         </div>
       </div>
     </>

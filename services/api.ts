@@ -41,7 +41,14 @@ const run = async <T>(supabaseAction: () => Promise<T>, mockAction: () => Promis
     warnUsingMockFallback();
     return mockAction();
   }
-  return supabaseAction();
+  
+  try {
+    return await supabaseAction();
+  } catch (error) {
+    console.error('[api] Erro na ação do Supabase, usando fallback (mock):', error);
+    warnUsingMockFallback();
+    return mockAction();
+  }
 };
 
 const readSupplierName = (suppliers: SupplierJoin): string | undefined => {

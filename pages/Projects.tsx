@@ -125,8 +125,8 @@ const toNumber = (value: string | number | undefined) => {
 
 const costTypeLabel: Record<ProjectCostType, string> = {
   MATERIAL: 'Material',
-  VEHICLE: 'Veiculo',
-  LABOR: 'Mao de obra'
+  VEHICLE: 'Veículo',
+  LABOR: 'Mão de Obra'
 };
 
 const getCostIcon = (type: ProjectCostType) => {
@@ -144,8 +144,8 @@ const getCostIcon = (type: ProjectCostType) => {
 
 const getFinanceIndicator = (percent: number) => {
   if (percent > 100) return { label: 'Estourado', classes: 'bg-red-100 text-red-700 border-red-200' };
-  if (percent >= 80) return { label: 'Atencao', classes: 'bg-amber-100 text-amber-700 border-amber-200' };
-  return { label: 'Saudavel', classes: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
+  if (percent >= 80) return { label: 'Atenção', classes: 'bg-amber-100 text-amber-700 border-amber-200' };
+  return { label: 'Saudável', classes: 'bg-emerald-100 text-emerald-700 border-emerald-200' };
 };
 
 const getStatusColor = (status: ProjectStatus) => {

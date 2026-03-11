@@ -79,7 +79,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <Layout activePage={currentPage} onNavigate={handleNavigate}>
+    <Layout activePage={currentPage} onNavigate={handleNavigate} onLogout={handleLogout}>
       {renderPage()}
     </Layout>
   );

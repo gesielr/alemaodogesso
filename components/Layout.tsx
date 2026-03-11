@@ -6,9 +6,10 @@ interface LayoutProps {
   children: React.ReactNode;
   activePage: string;
   onNavigate: (page: string) => void;
+  onLogout: () => void;
 }
 
-const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate }) => {
+const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate, onLogout }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
@@ -19,6 +20,7 @@ const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate }) => 
         toggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
         activePage={activePage}
         onNavigate={onNavigate}
+        onLogout={onLogout}
       />
 
       {/* Main Content */}
@@ -37,7 +39,11 @@ const Layout: React.FC<LayoutProps> = ({ children, activePage, onNavigate }) => 
                 {activePage === 'dashboard' ? 'Painel de Controle' : 
                  activePage.includes('finance') ? 'Gestão Financeira' :
                  activePage === 'projects' ? 'Obras e Projetos' :
-                 activePage.charAt(0).toUpperCase() + activePage.slice(1)}
+                 activePage === 'inventory' ? 'Controle de Estoque' :
+                 activePage === 'clients' ? 'Gestão de Clientes' :
+                 activePage === 'vehicles' ? 'Frota de Veículos' :
+                 activePage === 'reports' ? 'Centro de Relatórios' :
+                 'Alemão do Gesso'}
               </h2>
               <p className="text-[11px] text-slate-400 font-medium uppercase tracking-widest mt-0.5">
                 {new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}
