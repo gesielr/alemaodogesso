@@ -53,6 +53,8 @@ interface MaterialCostFormState {
   date: string;
   notes: string;
   selections: Record<string, MaterialSelectionState>;
+  extraMaterials: { name: string; unit: string; quantity: string; price_cost: string }[];
+  activeTab: 'STOCK' | 'EXTRA';
 }
 
 const money = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -110,7 +112,9 @@ const buildMaterialSelections = (materials: Material[]): Record<string, Material
 const emptyMaterialCostForm = (materials: Material[]): MaterialCostFormState => ({
   date: todayDate(),
   notes: '',
-  selections: buildMaterialSelections(materials)
+  selections: buildMaterialSelections(materials),
+  extraMaterials: [],
+  activeTab: 'STOCK'
 });
 
 const toNumber = (value: string | number | undefined) => {
@@ -572,6 +576,7 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
 
     setSavingCost(true);
     try {
+      // 1. Materiais do Estoque
       for (const item of selectedItems) {
         const totalAmount = Number((item.requestedQuantity * Number(item.material.price_cost || 0)).toFixed(2));
         const missingQuantity = Math.max(item.requestedQuantity - item.deductedQuantity, 0);
@@ -595,14 +600,30 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
         if (item.deductedQuantity > 0) {
           await api.addInventoryMovement({
             material_id: item.material.id,
-            movement_type: 'Sa\u00edda',
+            movement_type: 'Saída',
             quantity: item.deductedQuantity,
             unit_cost: Number(item.material.price_cost || 0),
             project_id: selectedProject.id,
-            notes: `Saida para a obra ${selectedProject.title}`,
-            movement_date: materialCostForm.date
+            movement_date: materialCostForm.date,
+            notes: `Referente a obra: ${selectedProject.title}`
           });
         }
+      }
+
+      // 2. Materiais Extras (Não afetam estoque)
+      for (const extra of materialCostForm.extraMaterials) {
+        if (!extra.name || toNumber(extra.quantity) <= 0) continue;
+        const amount = toNumber(extra.quantity) * toNumber(extra.price_cost);
+        
+        await api.addProjectCost({
+          project_id: selectedProject.id,
+          type: 'MATERIAL',
+          description: `[EXTRA] ${extra.name} (${extra.quantity} ${extra.unit})`,
+          amount: Number(amount.toFixed(2)),
+          date: materialCostForm.date,
+          quantity: toNumber(extra.quantity),
+          notes: `Material extra não disponível em estoque. | ${materialCostForm.notes}`
+        });
       }
 
       const hasShortage = selectedItems.some((item) => item.requestedQuantity > item.deductedQuantity);
@@ -1035,9 +1056,28 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
         {activeCostType === 'MATERIAL' ? (
           <form onSubmit={saveMaterialCost} className="h-full flex flex-col gap-8">
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-8">
-              <div className="xl:col-span-3 bg-white p-8 rounded-3xl shadow-xl shadow-slate-200/30 border border-slate-50 space-y-6">
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-50 pb-4">Configuração da Requisição</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="xl:col-span-3 bg-white p-6 rounded-3xl shadow-xl shadow-slate-200/30 border border-slate-50 space-y-6 flex flex-col min-h-0">
+                <div className="flex items-center justify-between border-b border-slate-50 pb-4">
+                  <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Configuração da Requisição</h4>
+                  <div className="flex bg-slate-100 p-1 rounded-xl">
+                    <button 
+                      type="button" 
+                      onClick={() => setMaterialCostForm(prev => ({ ...prev, activeTab: 'STOCK' }))}
+                      className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${materialCostForm.activeTab === 'STOCK' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      Estoque
+                    </button>
+                    <button 
+                      type="button" 
+                      onClick={() => setMaterialCostForm(prev => ({ ...prev, activeTab: 'EXTRA' }))}
+                      className={`px-4 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all ${materialCostForm.activeTab === 'EXTRA' ? 'bg-white text-blue-600 shadow-sm' : 'text-slate-400 hover:text-slate-600'}`}
+                    >
+                      Material Extra
+                    </button>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Data da Saída</label>
                     <div className="relative">
@@ -1045,11 +1085,106 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
                       <input type="date" className="w-full pl-11 pr-4 py-4 rounded-2xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-bold text-slate-900" value={materialCostForm.date} onChange={(e) => setMaterialCostForm((prev) => ({ ...prev, date: e.target.value }))} />
                     </div>
                   </div>
-                  <div className="md:col-span-2">
+                  <div>
                     <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3 ml-1">Notas de Expedição</label>
                     <input type="text" className="w-full px-5 py-4 rounded-2xl border border-slate-200 bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-medium text-slate-700" placeholder="Ex: Motorista João - Entrega no período da tarde" value={materialCostForm.notes} onChange={(e) => setMaterialCostForm((prev) => ({ ...prev, notes: e.target.value }))} />
                   </div>
                 </div>
+
+                {materialCostForm.activeTab === 'STOCK' ? (
+                  <div className="flex-1 flex flex-col min-h-0 pt-4">
+                    <div className="grid grid-cols-[100px_minmax(280px,2fr)_140px_160px_140px_140px] gap-6 px-4 py-3 bg-slate-50/80 rounded-t-2xl border-x border-t border-slate-100 text-[9px] font-black uppercase tracking-[0.15em] text-slate-400">
+                      <span>Seleção</span>
+                      <span>Material & Especificações</span>
+                      <span>Custo Unit.</span>
+                      <span>Estoque</span>
+                      <span>Quantidade</span>
+                      <span className="text-right">Subtotal</span>
+                    </div>
+                    <div className="divide-y divide-slate-50 border-x border-b border-slate-100 rounded-b-2xl overflow-y-auto flex-1 custom-scrollbar">
+                      {inventoryLoading ? (
+                        <div className="py-20 text-center text-slate-400 flex flex-col items-center">
+                          <RefreshCcw className="animate-spin mb-4 text-blue-500" size={24} />
+                          <span className="font-black uppercase tracking-widest text-[10px]">Consultando Almoxarifado...</span>
+                        </div>
+                      ) : materialRows.length === 0 ? (
+                        <div className="py-20 text-center text-slate-400 font-bold italic">Nenhum material disponível.</div>
+                      ) : (
+                        materialRows.map((row) => (
+                          <div key={row.material.id} className={`grid grid-cols-[100px_minmax(280px,2fr)_140px_160px_140px_140px] gap-6 px-4 py-4 items-center transition-all ${row.selected ? 'bg-blue-50/30' : 'hover:bg-slate-50/50'}`}>
+                            <label className="flex items-center justify-center">
+                              <input type="checkbox" className="h-5 w-5 rounded-lg border-slate-200 text-blue-600 cursor-pointer" checked={row.selected} onChange={(e) => setMaterialCostForm((prev) => ({ ...prev, selections: { ...prev.selections, [row.material.id]: { selected: e.target.checked, quantity: e.target.checked ? prev.selections[row.material.id]?.quantity || '' : '' } } }))} />
+                            </label>
+                            <div className="space-y-0.5">
+                              <div className="font-bold text-slate-900 text-sm truncate">{row.material.name}</div>
+                              <div className="text-[9px] font-bold uppercase text-slate-400">Unid: {row.material.unit}</div>
+                            </div>
+                            <div className="text-sm font-medium text-slate-600">{formatMoney(row.material.price_cost)}</div>
+                            <div className="text-[10px] font-black uppercase">
+                              {row.availableQuantity > 0 ? (
+                                <span className={row.availableQuantity < 10 ? 'text-amber-600' : 'text-emerald-600'}>Saldo: {formatQuantity(row.availableQuantity)}</span>
+                              ) : <span className="text-slate-400">Esgotado</span>}
+                            </div>
+                            <input type="number" min="0" step="0.001" className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white disabled:bg-slate-50 text-sm font-bold" placeholder="0.00" value={row.quantityValue} disabled={!row.selected} onChange={(e) => setMaterialCostForm((prev) => ({ ...prev, selections: { ...prev.selections, [row.material.id]: { selected: true, quantity: e.target.value } } }))} />
+                            <div className="font-black text-slate-900 text-right text-sm">{formatMoney(row.subtotal)}</div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-1 flex flex-col min-h-0 pt-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Itens fora de estoque</span>
+                      <button 
+                        type="button" 
+                        onClick={() => setMaterialCostForm(prev => ({ ...prev, extraMaterials: [...prev.extraMaterials, { name: '', unit: 'Unid', quantity: '', price_cost: '' }] }))}
+                        className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-blue-100 transition-all"
+                      >
+                        + Adicionar Item
+                      </button>
+                    </div>
+                    <div className="divide-y divide-slate-100 overflow-y-auto flex-1 custom-scrollbar border border-slate-100 rounded-3xl">
+                      {materialCostForm.extraMaterials.length === 0 ? (
+                        <div className="py-20 text-center text-slate-400">
+                          <Package size={40} className="mx-auto mb-4 opacity-20" />
+                          <span className="font-bold italic">Nenhum material extra adicionado.</span>
+                        </div>
+                      ) : (
+                        materialCostForm.extraMaterials.map((extra, idx) => (
+                          <div key={idx} className="p-4 grid grid-cols-[1fr_100px_100px_120px_40px] gap-4 items-center">
+                            <input type="text" placeholder="Nome do material" className="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-bold" value={extra.name} onChange={(e) => {
+                              const newList = [...materialCostForm.extraMaterials];
+                              newList[idx].name = e.target.value;
+                              setMaterialCostForm(prev => ({ ...prev, extraMaterials: newList }));
+                            }} />
+                            <input type="text" placeholder="Unid" className="w-full px-3 py-3 rounded-xl border border-slate-200 text-sm font-bold text-center" value={extra.unit} onChange={(e) => {
+                              const newList = [...materialCostForm.extraMaterials];
+                              newList[idx].unit = e.target.value;
+                              setMaterialCostForm(prev => ({ ...prev, extraMaterials: newList }));
+                            }} />
+                            <input type="number" placeholder="Qtd" className="w-full px-3 py-3 rounded-xl border border-slate-200 text-sm font-bold" value={extra.quantity} onChange={(e) => {
+                              const newList = [...materialCostForm.extraMaterials];
+                              newList[idx].quantity = e.target.value;
+                              setMaterialCostForm(prev => ({ ...prev, extraMaterials: newList }));
+                            }} />
+                            <input type="number" placeholder="Custo" className="w-full px-3 py-3 rounded-xl border border-slate-200 text-sm font-bold" value={extra.price_cost} onChange={(e) => {
+                              const newList = [...materialCostForm.extraMaterials];
+                              newList[idx].price_cost = e.target.value;
+                              setMaterialCostForm(prev => ({ ...prev, extraMaterials: newList }));
+                            }} />
+                            <button type="button" onClick={() => {
+                              const newList = materialCostForm.extraMaterials.filter((_, i) => i !== idx);
+                              setMaterialCostForm(prev => ({ ...prev, extraMaterials: newList }));
+                            }} className="text-rose-400 hover:text-rose-600 transition-colors">
+                              <RefreshCcw size={18} className="rotate-45" />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="bg-slate-900 p-8 rounded-3xl shadow-2xl shadow-slate-900/30 space-y-6 text-white relative overflow-hidden">
@@ -1249,42 +1384,42 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
                 {activeCostType === 'LABOR' && (
                   <div className="bg-blue-50/50 p-8 rounded-3xl border border-blue-100 space-y-6 transition-all animate-in fade-in slide-in-from-top-2">
                     <h4 className="text-[10px] font-black text-blue-500 uppercase tracking-widest border-b border-blue-100/50 pb-4 flex items-center">
-                      <Users size={16} className="mr-2" /> Detalhamento de Mão de Obra
+                      <Users size={16} className="mr-2" /> Registro de Mão de Obra
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="md:col-span-2">
-                        <label className="block text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 ml-1">Nome do Montador/Profissional</label>
+                        <label className="block text-[10px] font-black text-blue-600 uppercase tracking-widest mb-3 ml-1">Nome do Montador / Profissional</label>
                         <input
                           type="text"
                           required
-                          className="w-full px-5 py-4 rounded-2xl border border-blue-200 bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-medium text-slate-700"
+                          className="w-full px-5 py-4 rounded-2xl border border-blue-200 bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-bold text-slate-800"
                           placeholder="Ex: João Gesseiro"
                           value={genericCostForm.worker_name}
                           onChange={(e) => setGenericCostForm((prev) => ({ ...prev, worker_name: e.target.value }))}
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3 ml-1">Valor Diária (R$)</label>
-                        <input type="number" min="0" step="0.01" className="w-full px-5 py-4 rounded-2xl border border-blue-100 bg-white font-bold text-slate-800" placeholder="0.00" value={genericCostForm.labor_daily_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, labor_daily_value: e.target.value }))} />
+                        <label className="block text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3 ml-1">Valor do Serviço (R$)</label>
+                        <input type="number" min="0" step="0.01" className="w-full px-5 py-4 rounded-2xl border border-blue-100 bg-white font-bold text-slate-800 focus:ring-2 focus:ring-blue-500/20 outline-none" placeholder="0.00" value={genericCostForm.labor_daily_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, labor_daily_value: e.target.value }))} />
                       </div>
                       <div>
                         <label className="block text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3 ml-1">Alimentação (R$)</label>
-                        <input type="number" min="0" step="0.01" className="w-full px-5 py-4 rounded-2xl border border-blue-100 bg-white font-bold text-slate-800" placeholder="0.00" value={genericCostForm.labor_snack_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, labor_snack_value: e.target.value }))} />
+                        <input type="number" min="0" step="0.01" className="w-full px-5 py-4 rounded-2xl border border-blue-100 bg-white font-bold text-slate-800 focus:ring-2 focus:ring-blue-500/20 outline-none" placeholder="0.00" value={genericCostForm.labor_snack_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, labor_snack_value: e.target.value }))} />
                       </div>
                       <div>
                         <label className="block text-[10px] font-black text-blue-400 uppercase tracking-widest mb-3 ml-1">Transporte (R$)</label>
-                        <input type="number" min="0" step="0.01" className="w-full px-5 py-4 rounded-2xl border border-blue-100 bg-white font-bold text-slate-800" placeholder="0.00" value={genericCostForm.labor_transport_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, labor_transport_value: e.target.value }))} />
+                        <input type="number" min="0" step="0.01" className="w-full px-5 py-4 rounded-2xl border border-blue-100 bg-white font-bold text-slate-800 focus:ring-2 focus:ring-blue-500/20 outline-none" placeholder="0.00" value={genericCostForm.labor_transport_value} onChange={(e) => setGenericCostForm((prev) => ({ ...prev, labor_transport_value: e.target.value }))} />
                       </div>
                       <div className="flex items-end">
                         <button
                           type="button"
-                          className="w-full px-6 py-4 bg-blue-100 text-blue-700 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-200 transition-all"
+                          className="w-full px-6 py-4 bg-blue-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-200 transition-all"
                           onClick={() => {
                             const total = toNumber(genericCostForm.labor_daily_value) + toNumber(genericCostForm.labor_snack_value) + toNumber(genericCostForm.labor_transport_value);
-                            if (total > 0) setGenericCostForm(prev => ({ ...prev, amount: total.toString() }));
+                            setGenericCostForm(prev => ({ ...prev, amount: total.toFixed(2) }));
                           }}
                         >
-                          Somar ao Total
+                          Calcular Total: {formatMoney(toNumber(genericCostForm.labor_daily_value) + toNumber(genericCostForm.labor_snack_value) + toNumber(genericCostForm.labor_transport_value))}
                         </button>
                       </div>
                     </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Layout from './components/Layout';
 import Dashboard from './pages/Dashboard';
 import Projects from './pages/Projects';
@@ -7,15 +7,35 @@ import Finance from './pages/Finance';
 import Clients from './pages/Clients';
 import Vehicles from './pages/Vehicles';
 import Reports from './pages/Reports';
+import Login from './pages/Login';
 import { TransactionType } from './types';
 
 const App: React.FC = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [projectFilter, setProjectFilter] = useState('');
 
+  // Persistência simples de login (Session Storage)
+  useEffect(() => {
+    const auth = sessionStorage.getItem('alemaodogesso_auth');
+    if (auth === 'true') setIsAuthenticated(true);
+  }, []);
+
+  const handleLogin = (phone: string, pass: string) => {
+    // Simulação de autenticação (Pode ser expandido para Supabase Auth)
+    if (phone && pass) {
+      setIsAuthenticated(true);
+      sessionStorage.setItem('alemaodogesso_auth', 'true');
+    }
+  };
+
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    sessionStorage.removeItem('alemaodogesso_auth');
+  };
+
   const handleNavigate = (page: string) => {
     setCurrentPage(page);
-    // Clear filter when navigating manually to projects or other pages
     setProjectFilter('');
   };
 
@@ -32,15 +52,12 @@ const App: React.FC = () => {
         return <Projects initialSearchTerm={projectFilter} />;
       case 'inventory':
         return <Inventory />;
-      
-      // Finance Routes
       case 'finance':
         return <Finance />;
       case 'finance-receivables':
         return <Finance filterType={TransactionType.RECEITA} />;
       case 'finance-payables':
         return <Finance filterType={TransactionType.DESPESA} />;
-
       case 'clients':
         return <Clients onViewProjects={handleViewClientProjects} />;
       case 'vehicles':
@@ -51,6 +68,10 @@ const App: React.FC = () => {
         return <Dashboard />;
     }
   };
+
+  if (!isAuthenticated) {
+    return <Login onLogin={handleLogin} />;
+  }
 
   return (
     <Layout activePage={currentPage} onNavigate={handleNavigate}>
