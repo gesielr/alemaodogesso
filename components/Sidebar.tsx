@@ -94,19 +94,19 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, activePage, on
                   onClick={() => handleMenuClick(item.id, !!item.subItems)}
                   className={`flex items-center justify-between w-full px-4 py-3.5 rounded-xl transition-all duration-300 group ${
                     isActive && !item.subItems
-                      ? 'bg-blue-600/10 text-white' 
-                      : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                      ? 'bg-blue-600/10 text-blue-500' 
+                      : 'text-blue-600/70 hover:bg-blue-600/5 hover:text-blue-600'
                    }`}
                 >
                   <div className="flex items-center">
-                    <div className={`p-2 rounded-xl mr-3 transition-all duration-300 ${isActive ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)]' : 'bg-slate-800/50 text-slate-500 group-hover:bg-slate-800 group-hover:text-white'}`}>
+                    <div className={`p-2 rounded-xl mr-3 transition-all duration-300 ${isActive ? 'bg-blue-600 text-white shadow-[0_0_20px_rgba(37,99,235,0.4)]' : 'bg-blue-600/10 text-blue-600 group-hover:bg-blue-600 group-hover:text-white'}`}>
                       <Icon size={18} />
                     </div>
-                    <span className={`font-bold tracking-tight text-sm transition-colors duration-300 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-white'}`}>{item.label}</span>
+                    <span className={`font-black tracking-tight text-sm transition-colors duration-300 ${isActive ? 'text-blue-500' : 'text-blue-600/80 group-hover:text-blue-600'}`}>{item.label}</span>
                   </div>
                   {item.subItems && (
                     <div className={`transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}>
-                      <ChevronDown size={14} className={isActive ? 'text-blue-400' : 'text-slate-600'} />
+                      <ChevronDown size={14} className={isActive ? 'text-blue-500' : 'text-blue-600/50'} />
                     </div>
                   )}
                 </button>
@@ -155,7 +155,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, toggleSidebar, activePage, on
 
           <button 
             onClick={onLogout}
-            className="w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl border border-white/10 text-slate-400 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20 transition-all duration-300 font-bold text-xs uppercase tracking-widest group"
+            className="w-full flex items-center justify-center gap-3 px-4 py-3.5 rounded-xl border border-blue-600/20 text-blue-500 hover:bg-rose-500/10 hover:text-rose-400 hover:border-rose-500/20 transition-all duration-300 font-black text-xs uppercase tracking-widest group"
           >
             <LogOut size={16} className="group-hover:-translate-x-1 transition-transform" />
             Encerrar Sessão
