@@ -1,0 +1,83 @@
+{
+  "october_2025": {
+    "revenues": [
+      { "client": "Fabricio Serrania", "amount": 26548.20 },
+      { "client": "Farcorp", "amount": 25379.32 },
+      { "client": "Daniel Rosa", "amount": 3000.00 },
+      { "client": "Alberto Panorâmico", "amount": 2327.00 }
+    ],
+    "labor": [
+      { "name": "José", "amount": 0 },
+      { "name": "Erasmo", "amount": 0 },
+      { "name": "Josué", "amount": 0 },
+      { "name": "Tiago", "amount": 0 }
+    ],
+    "total_labor": 21420.00,
+    "total_revenue": 76012.02,
+    "total_expense": 60116.40
+  },
+  "november_2025": {
+    "revenues": [
+      { "date": "2025-11-03", "client": "Thiago Palhocinha", "amount": 2944.68 },
+      { "date": "2025-11-05", "client": "Nelly Rosa", "amount": 2879.24 },
+      { "date": "2025-11-10", "client": "Daniel Rosa II", "amount": 4790.00 },
+      { "date": "2025-11-14", "client": "Fanconp Ferraz (PVC Bloco B)", "amount": 6424.00 },
+      { "date": "2025-11-17", "client": "Leandro Paulo Lopes", "amount": 7655.00 },
+      { "date": "2025-11-17", "client": "Junior Rosa", "amount": 6750.00 },
+      { "date": "2025-11-21", "client": "Fanconp Ferraz (Drywall Bloco C)", "amount": 24714.76 },
+      { "client": "Jorge Araçatuba", "amount": 500.00 },
+      { "client": "AD Foods", "amount": 1000.00 }
+    ],
+    "labor": [
+      { "name": "José", "amount": 4970.00 },
+      { "name": "Erasmo", "amount": 4125.00 },
+      { "name": "Josué", "amount": 4018.00 },
+      { "name": "André", "amount": 885.00 },
+      { "name": "Tiago", "amount": 1250.00 }
+    ],
+    "total_labor": 15248.00,
+    "total_revenue": 56574.58
+  },
+  "december_2025": {
+    "revenues": [
+      { "client": "Foxcorp", "amount": 33472.36 },
+      { "client": "Cledis Pedra Branca", "amount": 15200.00 },
+      { "client": "Júlio Rosa", "amount": 8600.00 },
+      { "client": "Leide Panorâmico", "amount": 7358.00 },
+      { "client": "Ricardo Rosa", "amount": 6975.00 },
+      { "client": "Mausa Imbituba", "amount": 3930.00 },
+      { "client": "Fabrício Serraria", "amount": 1690.00 },
+      { "client": "Adilson Rodoviária", "amount": 1000.00 },
+      { "client": "Cauê Panorâmico", "amount": 500.00 }
+    ],
+    "labor_total": 26978.00,
+    "total_revenue": 75636.86,
+    "total_expense": 57489.49
+  },
+  "january_2026": {
+    "revenues": [
+      { "date": "2026-01-05", "client": "Nati Penha", "amount": 15776.00 },
+      { "date": "2026-01-06", "client": "Caroline C' duna", "amount": 2400.00 },
+      { "date": "2026-01-06", "client": "Junior Rosa", "amount": 10826.00 },
+      { "date": "2026-01-12", "client": "Ricardo Rosa I", "amount": 4081.50 },
+      { "date": "2026-01-15", "client": "Jaime Canto", "amount": 8113.00 },
+      { "date": "2026-01-16", "client": "Fincorp Bloco C", "amount": 47626.44 },
+      { "date": "2026-01-21", "client": "Sicli Panorâmico", "amount": 2755.00 },
+      { "date": "2026-01-23", "client": "Gustavo Nedel", "amount": 6900.00 },
+      { "date": "2026-01-29", "client": "Nicanor", "amount": 2500.00 }
+    ],
+    "labor_total": 19287.00,
+    "total_revenue": 93049.94,
+    "materials_total": 28329.64
+  },
+  "february_2026": {
+    "revenues": [
+      { "client": "Fancorp Bloco L", "amount": 12084.00 },
+      { "client": "Jaime Castro", "amount": 17226.00 },
+      { "client": "Ricardo Rosa II", "amount": 7756.00 },
+      { "client": "Ricardo C' duna", "amount": 7164.00 },
+      { "client": "AD Sede", "amount": 2350.00 }
+    ],
+    "materials_compras_gerais": 15729.05
+  }
+}
