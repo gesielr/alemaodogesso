@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { FileText, Download, TrendingUp, DollarSign, Package, Calendar, Eye, Loader2, Users } from 'lucide-react';
 import { api } from '../services/api';
 import { Project, ProjectStatus, Transaction, TransactionType } from '../types';
@@ -217,6 +217,13 @@ const Reports: React.FC = () => {
   const [runningReport, setRunningReport] = useState<{ reportId: number; action: ReportAction } | null>(null);
   const [lastGeneratedReport, setLastGeneratedReport] = useState<string>('');
   const [preview, setPreview] = useState<ReportPreview | null>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (preview && previewRef.current) {
+      previewRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [preview]);
   const [periodByReportId, setPeriodByReportId] = useState<Record<number, ReportPeriodPreset>>(
     () =>
       Object.fromEntries(reports.map((report) => [report.id, defaultPeriod])) as Record<
@@ -283,7 +290,10 @@ const Reports: React.FC = () => {
   ): Promise<ReportDataset> => {
     if (report.id === 1) {
       const projects = await api.getProjects();
-      const filtered = projects.filter((project) => inRange(project.start_date, period.start, period.end));
+      const filtered = projects.filter((project) => {
+        const dateToUse = project.start_date || project.approved_at?.split('T')[0];
+        return inRange(dateToUse, period.start, period.end);
+      });
       return buildProfitabilityReport(filtered);
     }
 
@@ -432,21 +442,53 @@ const Reports: React.FC = () => {
     periodRange: { start: string; end: string },
     dataset: ReportDataset
   ) => {
-    const subtitle = `${periodLabel} | ${formatDateLabel(periodRange.start)} a ${formatDateLabel(periodRange.end)}`;
+    const subtitle = `${periodLabel} | Periodo: ${formatDateLabel(periodRange.start)} a ${formatDateLabel(periodRange.end)}`;
     const { doc, startY } = await createBasePdf(report.title, subtitle);
 
-    const tableRows = dataset.rows.slice(0, 200);
+    const tableRows = dataset.rows.slice(0, 500); // Aumentado limite para 500
     const finalY = addStyledTable(doc, dataset.columns, tableRows, startY);
+
+    // Adiciona uma nova pagina se nao houver espaco para o resumo
+    let currentY = finalY + 35;
+    if (currentY + 120 > doc.internal.pageSize.getHeight()) {
+      doc.addPage();
+      currentY = 50;
+    }
+
+    // Caixa de Resumo Consolidado
+    doc.setFillColor(248, 250, 252);
+    doc.setDrawColor(226, 232, 240);
+    doc.roundedRect(40, currentY, 515, 25 + (dataset.summary.length * 18), 8, 8, 'FD');
 
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(11);
-    doc.text('Resumo', 40, finalY + 24);
+    doc.setTextColor(30, 41, 59);
+    doc.text('RESUMO CONSOLIDADO', 55, currentY + 18);
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(10);
+    doc.setTextColor(51, 65, 85);
+    
     dataset.summary.forEach((line, index) => {
-      doc.text(`- ${line}`, 40, finalY + 42 + index * 14);
+      const parts = line.split(':');
+      const label = parts[0] + ':';
+      const value = parts[1] || '';
+      
+      doc.setFont('helvetica', 'bold');
+      doc.text(label, 55, currentY + 40 + index * 18);
+      
+      doc.setFont('helvetica', 'normal');
+      doc.text(value, 55 + doc.getTextWidth(label) + 5, currentY + 40 + index * 18);
     });
+
+    // Rodapé simples
+    const pageCount = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(148, 163, 184);
+        doc.text(`Gerado em ${new Date().toLocaleString('pt-BR')} - Pagina ${i} de ${pageCount}`, 40, doc.internal.pageSize.getHeight() - 20);
+    }
 
     const fileName = `${sanitizePdfFilename(report.title)}-${periodRange.start}-${periodRange.end}.pdf`;
     const blob = doc.output('blob');
@@ -589,7 +631,7 @@ const Reports: React.FC = () => {
       </div>
 
       {preview && (
-        <div className="bg-white rounded-[32px] shadow-2xl shadow-slate-200/50 border border-slate-100 overflow-hidden animate-in slide-up duration-700">
+        <div ref={previewRef} className="bg-white rounded-[32px] shadow-2xl shadow-slate-200/50 border border-slate-100 overflow-hidden animate-in slide-up duration-700">
           <div className="px-8 py-6 border-b border-slate-50 flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-slate-50/30 backdrop-blur-sm">
             <div>
               <div className="flex items-center gap-3">

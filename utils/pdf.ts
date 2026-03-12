@@ -39,36 +39,40 @@ export const createBasePdf = async (title: string, subtitle: string) => {
   const doc = new jsPDF({ unit: 'pt', format: 'a4' });
   const pageWidth = doc.internal.pageSize.getWidth();
 
-  // Removido fundo escuro conforme solicitacao
-  // doc.setFillColor(15, 23, 42);
-  // doc.rect(0, 0, pageWidth, 80, 'F');
-
-  doc.setDrawColor(0, 0, 0);
-  doc.setLineWidth(1.5);
-  doc.line(40, 80, pageWidth - 40, 80); // Linha divisória solicitada
-
   const logo = await getBrandLogoDataUrl();
-  let titleX = 40;
+  let currentY = 40;
 
   if (logo) {
-    doc.addImage(logo, 'PNG', 36, 18, 95, 40);
-    titleX = 145;
+    // Logo centralizado no topo
+    const logoWidth = 120;
+    const logoHeight = 50;
+    doc.addImage(logo, 'PNG', (pageWidth - logoWidth) / 2, 20, logoWidth, logoHeight);
+    currentY = 85;
   }
 
-  doc.setTextColor(17, 24, 39); // Alterado para preto/escuro
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
+  doc.setDrawColor(226, 232, 240);
+  doc.setLineWidth(1);
+  doc.line(40, currentY, pageWidth - 40, currentY);
 
-  // Se o titulo comecar com "Orcamento:", simplifica para apenas "Orçamento"
+  doc.setTextColor(17, 24, 39);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(18);
+  
   const cleanTitle = title.startsWith('Orcamento:') || title.startsWith('Orçamento:') ? 'Orçamento' : title;
-  doc.text(cleanTitle, titleX, 40);
+  const titleWidth = doc.getTextWidth(cleanTitle);
+  doc.text(cleanTitle, (pageWidth - titleWidth) / 2, currentY + 30);
 
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  doc.text(subtitle, titleX, 58);
+  doc.setTextColor(100, 116, 139);
+  const subtitleWidth = doc.getTextWidth(subtitle);
+  doc.text(subtitle, (pageWidth - subtitleWidth) / 2, currentY + 48);
 
-  doc.setTextColor(17, 24, 39);
-  return { doc, startY: 105 };
+  doc.setDrawColor(37, 99, 235);
+  doc.setLineWidth(2);
+  doc.line((pageWidth - 40) / 2 - 20, currentY + 58, (pageWidth - 40) / 2 + 60, currentY + 58);
+
+  return { doc, startY: currentY + 85 };
 };
 
 export const addStyledTable = (
