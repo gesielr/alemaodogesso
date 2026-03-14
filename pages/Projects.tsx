@@ -505,8 +505,26 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
       window.alert('Informe a descricao do lancamento.');
       return;
     }
-    if (toNumber(genericCostForm.amount) <= 0) {
-      window.alert('Informe um valor maior que zero.');
+
+    const daily = toNumber(genericCostForm.labor_daily_value);
+    const snack = toNumber(genericCostForm.labor_snack_value);
+    const transport = toNumber(genericCostForm.labor_transport_value);
+    const fuel = toNumber(genericCostForm.vehicle_fuel_value);
+    const toll = toNumber(genericCostForm.vehicle_toll_value);
+    const maint = toNumber(genericCostForm.vehicle_maintenance_value);
+
+    let finalAmount = toNumber(genericCostForm.amount);
+
+    if (genericCostForm.type === 'LABOR') {
+      const calc = daily + snack + transport;
+      if (calc > 0 && finalAmount === 0) finalAmount = calc;
+    } else if (genericCostForm.type === 'VEHICLE') {
+      const calc = fuel + toll + maint;
+      if (calc > 0 && finalAmount === 0) finalAmount = calc;
+    }
+
+    if (finalAmount <= 0) {
+      window.alert('Informe um valor de gasto maior que zero.');
       return;
     }
 
@@ -523,7 +541,7 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
         project_id: selectedProject.id,
         type: genericCostForm.type,
         description: genericCostForm.description.trim(),
-        amount: toNumber(genericCostForm.amount),
+        amount: finalAmount,
         date: genericCostForm.date,
         employee_id: genericCostForm.employee_id || undefined,
         worker_name: genericCostForm.worker_name.trim() || undefined,
@@ -565,12 +583,18 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
       })
       .filter((item) => item.isSelected);
 
-    if (selectedItems.length === 0) {
+    if (selectedItems.length === 0 && materialCostForm.extraMaterials.length === 0) {
       window.alert('Selecione pelo menos um material para o lancamento.');
       return;
     }
     if (selectedItems.some((item) => item.requestedQuantity <= 0)) {
-      window.alert('Informe a quantidade dos materiais selecionados.');
+      window.alert('Informe a quantidade dos materiais selecionados no estoque.');
+      return;
+    }
+    
+    // Validate Extra materials
+    if (materialCostForm.extraMaterials.some(extra => extra.name.trim() && toNumber(extra.quantity) <= 0)) {
+      window.alert('Informe a quantidade dos materiais extras informados.');
       return;
     }
 
@@ -1357,7 +1381,7 @@ const Projects: React.FC<ProjectsProps> = ({ initialSearchTerm = '' }) => {
                              type="number" 
                              min="0" 
                              step="0.01" 
-                             required
+                             required={activeCostType === 'MATERIAL'}
                              className="w-full pl-11 pr-4 py-4 rounded-2xl border border-slate-200 bg-slate-50/30 focus:bg-white focus:ring-2 focus:ring-blue-500/20 outline-none transition-all font-bold text-slate-900" 
                              value={genericCostForm.amount} 
                              onChange={(e) => setGenericCostForm((prev) => ({ ...prev, amount: e.target.value }))} 
